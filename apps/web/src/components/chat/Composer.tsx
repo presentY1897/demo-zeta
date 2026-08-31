@@ -5,10 +5,13 @@ import { useRef, useState } from "react";
 /** 하단 입력창 — Enter 전송, Shift+Enter 줄바꿈, 스트리밍 중엔 중단 버튼 */
 export function Composer({
   busy,
+  disabled,
   onSend,
   onStop,
 }: {
   busy: boolean;
+  /** 메시지 수정 중 등 입력을 잠글 때 */
+  disabled?: boolean;
   onSend: (text: string) => void;
   onStop: () => void;
 }) {
@@ -17,7 +20,7 @@ export function Composer({
 
   function submit() {
     const trimmed = text.trim();
-    if (!trimmed || busy) return;
+    if (!trimmed || busy || disabled) return;
     onSend(trimmed);
     setText("");
     const el = textareaRef.current;
@@ -31,7 +34,12 @@ export function Composer({
           ref={textareaRef}
           value={text}
           rows={1}
-          placeholder="메시지를 입력하세요 (*지문*도 쓸 수 있어요)"
+          disabled={disabled}
+          placeholder={
+            disabled
+              ? "위에서 메시지를 수정하고 있어요"
+              : "메시지를 입력하세요 (*지문*도 쓸 수 있어요)"
+          }
           onChange={(e) => {
             setText(e.target.value);
             const el = e.currentTarget;
@@ -60,7 +68,7 @@ export function Composer({
           <button
             type="button"
             onClick={submit}
-            disabled={!text.trim()}
+            disabled={!text.trim() || disabled}
             aria-label="전송"
             className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-white transition-colors hover:bg-primary-strong disabled:bg-surface-2 disabled:text-text-faint"
           >

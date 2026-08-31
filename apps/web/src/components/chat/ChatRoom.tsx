@@ -27,11 +27,19 @@ interface LiveState {
 export function ChatRoom({ plot }: { plot: Plot }) {
   const settings = useAiSettingsHydrated();
   const room = useChatStore((s) => s.rooms[plot.id]);
-  const { ensureRoom, appendMessage, removeLastAssistant, resetRoom } =
-    useChatStore();
+  const {
+    ensureRoom,
+    appendMessage,
+    removeLastAssistant,
+    truncateFrom,
+    resetRoom,
+  } = useChatStore();
 
   const [live, setLive] = useState<LiveState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{ id: string; text: string } | null>(
+    null,
+  );
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
@@ -125,6 +133,34 @@ export function ChatRoom({ plot }: { plot: Plot }) {
     lastMessage?.role === "assistant";
   const canRetry = !busy && lastMessage?.role === "user";
 
+  // 수정/다시 보내기 대상: 대화 꼬리([유저] 또는 [유저, 어시스턴트])의 유저 메시지
+  const messages = room?.messages ?? [];
+  let lastUserIndex = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i]?.role === "user") {
+      lastUserIndex = i;
+      break;
+    }
+  }
+  const actionableUserId =
+    !busy && lastUserIndex >= 0 && lastUserIndex >= messages.length - 2
+      ? messages[lastUserIndex]?.id
+      : undefined;
+
+  /** 해당 유저 메시지부터 뒤를 잘라내고 새 내용으로 다시 보낸다 */
+  function resendFrom(messageId: string, text: string) {
+    if (busy || !room) return;
+    const idx = room.messages.findIndex((m) => m.id === messageId);
+    if (idx <= 0) return;
+    const keptTurns: ChatTurn[] = room.messages
+      .slice(0, idx)
+      .map((m) => ({ role: m.role, content: m.content }));
+    truncateFrom(plot.id, messageId);
+    appendMessage(plot.id, { role: "user", content: text });
+    setEditing(null);
+    void run([...keptTurns, { role: "user", content: text }]);
+  }
+
   function regenerate() {
     if (!canRegenerate) return;
     removeLastAssistant(plot.id);
@@ -189,25 +225,101 @@ export function ChatRoom({ plot }: { plot: Plot }) {
         }}
         className="flex-1 space-y-4 overflow-y-auto px-4 py-4"
       >
-        {room?.messages.map((msg) =>
-          msg.role === "assistant" ? (
-            <AssistantBubble
-              key={msg.id}
-              plot={plot}
-              footer={
-                msg.interrupted ? (
-                  <p className="mt-1 pl-1 text-[11px] text-text-faint">
-                    ⏹ 응답이 중단됐어요
-                  </p>
-                ) : undefined
-              }
-            >
-              <RoleplayContent text={msg.content} />
-            </AssistantBubble>
-          ) : (
-            <UserBubble key={msg.id} content={msg.content} />
-          ),
-        )}
+        {room?.messages.map((msg) => {
+          if (msg.role === "assistant") {
+            return (
+              <AssistantBubble
+                key={msg.id}
+                plot={plot}
+                footer={
+                  msg.interrupted ? (
+                    <p className="mt-1 pl-1 text-[11px] text-text-faint">
+                      ⏹ 응답이 중단됐어요
+                    </p>
+                  ) : undefined
+                }
+              >
+                <RoleplayContent text={msg.content} />
+              </AssistantBubble>
+            );
+          }
+
+          // 수정 모드: 버블 대신 인라인 편집 박스
+          if (editing?.id === msg.id) {
+            return (
+              <div key={msg.id} className="flex justify-end">
+                <div className="w-full max-w-[85%] rounded-2xl border border-primary/60 bg-surface p-2">
+                  <textarea
+                    autoFocus
+                    value={editing.text}
+                    rows={3}
+                    onChange={(e) =>
+                      setEditing({ id: msg.id, text: e.target.value })
+                    }
+                    onKeyDown={(e) => {
+                      if (
+                        e.key === "Enter" &&
+                        !e.shiftKey &&
+                        !e.nativeEvent.isComposing
+                      ) {
+                        e.preventDefault();
+                        if (editing.text.trim()) {
+                          resendFrom(msg.id, editing.text.trim());
+                        }
+                      }
+                      if (e.key === "Escape") setEditing(null);
+                    }}
+                    className="w-full resize-none bg-transparent px-2 py-1.5 text-sm leading-relaxed outline-none"
+                  />
+                  <div className="flex justify-end gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setEditing(null)}
+                      className="rounded-lg px-3 py-1.5 text-[13px] font-medium text-text-sub transition-colors hover:bg-surface-2"
+                    >
+                      취소
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!editing.text.trim()}
+                      onClick={() => resendFrom(msg.id, editing.text.trim())}
+                      className="rounded-lg bg-primary px-3 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-primary-strong disabled:bg-surface-2 disabled:text-text-faint"
+                    >
+                      다시 보내기
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          const showActions = actionableUserId === msg.id && !editing;
+          return (
+            <div key={msg.id} className="space-y-1">
+              <UserBubble content={msg.content} />
+              {showActions && (
+                <div className="flex justify-end gap-0.5 pr-1">
+                  <button
+                    type="button"
+                    onClick={() => setEditing({ id: msg.id, text: msg.content })}
+                    className="rounded-md px-2 py-0.5 text-[12px] text-text-faint transition-colors hover:bg-surface-2 hover:text-text-sub"
+                  >
+                    수정
+                  </button>
+                  {lastUserIndex === messages.length - 1 && (
+                    <button
+                      type="button"
+                      onClick={() => resendFrom(msg.id, msg.content)}
+                      className="rounded-md px-2 py-0.5 text-[12px] text-text-faint transition-colors hover:bg-surface-2 hover:text-text-sub"
+                    >
+                      다시 보내기
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
 
         {live && (
           <AssistantBubble plot={plot}>
@@ -242,7 +354,7 @@ export function ChatRoom({ plot }: { plot: Plot }) {
           </div>
         )}
 
-        {canRegenerate && !error && (
+        {canRegenerate && !error && !editing && (
           <div className="pl-11">
             <button
               type="button"
@@ -258,7 +370,12 @@ export function ChatRoom({ plot }: { plot: Plot }) {
         )}
       </div>
 
-      <Composer busy={busy} onSend={send} onStop={stop} />
+      <Composer
+        busy={busy}
+        disabled={editing !== null}
+        onSend={send}
+        onStop={stop}
+      />
     </div>
   );
 }

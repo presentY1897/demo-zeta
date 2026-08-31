@@ -29,6 +29,8 @@ interface ChatState {
   ) => void;
   /** 마지막 어시스턴트 응답 제거 (재생성용) */
   removeLastAssistant: (plotId: string) => void;
+  /** 해당 메시지부터 끝까지 제거 (수정 후 다시 보내기용) */
+  truncateFrom: (plotId: string, messageId: string) => void;
   resetRoom: (plotId: string, firstMessage: string) => void;
 }
 
@@ -87,6 +89,24 @@ export const useChatStore = create<ChatState>()(
               [plotId]: {
                 ...room,
                 messages: room.messages.slice(0, -1),
+                updatedAt: Date.now(),
+              },
+            },
+          };
+        }),
+      truncateFrom: (plotId, messageId) =>
+        set((s) => {
+          const room = s.rooms[plotId];
+          if (!room) return s;
+          const idx = room.messages.findIndex((m) => m.id === messageId);
+          // 첫 메시지(인덱스 0)는 잘라낼 수 없다
+          if (idx <= 0) return s;
+          return {
+            rooms: {
+              ...s.rooms,
+              [plotId]: {
+                ...room,
+                messages: room.messages.slice(0, idx),
                 updatedAt: Date.now(),
               },
             },
