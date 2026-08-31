@@ -101,6 +101,21 @@ export function toProviderConfig(
   };
 }
 
+/** 요청 전에 잡을 수 있는 설정 누락 — 문제 없으면 null */
+export function validateProviderConfig(cfg: ProviderConfig): string | null {
+  if (cfg.kind === "mock") return null;
+  if (cfg.kind === "anthropic" && !cfg.apiKey) {
+    return "Anthropic API 키가 설정되지 않았어요.";
+  }
+  if (cfg.kind === "openai" && !cfg.baseUrl?.trim()) {
+    return "엔드포인트 주소가 설정되지 않았어요.";
+  }
+  if (!cfg.model?.trim()) {
+    return "모델 이름이 설정되지 않았어요.";
+  }
+  return null;
+}
+
 /** persist 복원 전 하이드레이션 불일치 방지 */
 export function useAiSettingsHydrated() {
   const [hydrated, setHydrated] = useState(false);

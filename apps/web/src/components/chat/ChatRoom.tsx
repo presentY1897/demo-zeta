@@ -7,7 +7,12 @@ import { cn } from "@theta/ui";
 import { useChatStore } from "@/lib/chat-store";
 import { streamChat } from "@/lib/ai/client";
 import { buildSystemPrompt } from "@/lib/ai/prompt";
-import { PRESETS, toProviderConfig, useAiSettingsHydrated } from "@/lib/ai/settings";
+import {
+  PRESETS,
+  toProviderConfig,
+  useAiSettingsHydrated,
+  validateProviderConfig,
+} from "@/lib/ai/settings";
 import type { ChatTurn } from "@/lib/ai/types";
 import { AssistantBubble, RoleplayContent, UserBubble } from "./MessageBubble";
 import { PlotAvatar } from "./PlotAvatar";
@@ -53,12 +58,22 @@ export function ChatRoom({ plot }: { plot: Plot }) {
     setError(null);
     const controller = new AbortController();
     abortRef.current = controller;
-    setLive({ text: "", phase: "waiting" });
     stickToBottomRef.current = true;
+
+    // 서버 왕복 전에 잡을 수 있는 설정 누락은 바로 안내
+    const provider = toProviderConfig(settings);
+    const configProblem = validateProviderConfig(provider);
+    if (configProblem) {
+      setError(`${configProblem} 내 AI 연결 설정을 확인해 주세요.`);
+      abortRef.current = null;
+      return;
+    }
+
+    setLive({ text: "", phase: "waiting" });
     let acc = "";
     try {
       const req = {
-        provider: toProviderConfig(settings),
+        provider,
         system: buildSystemPrompt(plot),
         plotName: plot.name,
         messages: turns,
@@ -205,17 +220,25 @@ export function ChatRoom({ plot }: { plot: Plot }) {
         )}
 
         {error && (
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3">
-            <p className="text-[13px] text-danger">{error}</p>
-            {canRetry && (
-              <button
-                type="button"
-                onClick={retry}
-                className="shrink-0 rounded-lg bg-danger/20 px-3 py-1.5 text-[13px] font-semibold text-danger transition-colors hover:bg-danger/30"
+          <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3">
+            <p className="min-w-0 flex-1 text-[13px] text-danger">{error}</p>
+            <div className="flex shrink-0 gap-1.5">
+              <Link
+                href="/my/ai"
+                className="rounded-lg bg-surface-2 px-3 py-1.5 text-[13px] font-semibold text-text-sub transition-colors hover:bg-line"
               >
-                재시도
-              </button>
-            )}
+                AI 설정
+              </Link>
+              {canRetry && (
+                <button
+                  type="button"
+                  onClick={retry}
+                  className="rounded-lg bg-danger/20 px-3 py-1.5 text-[13px] font-semibold text-danger transition-colors hover:bg-danger/30"
+                >
+                  재시도
+                </button>
+              )}
+            </div>
           </div>
         )}
 
