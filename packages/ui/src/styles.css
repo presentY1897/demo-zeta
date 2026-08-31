@@ -24,6 +24,14 @@
   --radius-card: 1rem;
 }
 
+/* 가로 스크롤 칩 목록 등에서 스크롤바 숨김 */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 html {
   background: var(--color-bg);
   color: var(--color-text);
