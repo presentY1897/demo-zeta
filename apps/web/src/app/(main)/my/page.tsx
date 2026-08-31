@@ -54,9 +54,12 @@ export default function MyPage() {
         >
           내 AI 연결 <span className="text-text-faint">›</span>
         </Link>
-        <div className="flex items-center justify-between p-4 text-sm text-text-faint">
-          내가 만든 플롯 <span>구현 예정</span>
-        </div>
+        <Link
+          href="/my/plots"
+          className="flex items-center justify-between p-4 text-sm transition-colors hover:bg-surface-2"
+        >
+          내가 만든 플롯 <span className="text-text-faint">›</span>
+        </Link>
       </Card>
 
       <Button
