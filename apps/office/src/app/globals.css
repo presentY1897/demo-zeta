@@ -1,0 +1,5 @@
+@import "tailwindcss";
+@import "@theta/ui/styles.css";
+
+/* 워크스페이스 패키지의 클래스도 스캔 대상에 포함 */
+@source "../../../../packages/ui/src";
