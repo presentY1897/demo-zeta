@@ -1,7 +1,7 @@
-import { notFound } from "next/navigation";
 import { getPlot, plots } from "@theta/mocks";
-import { ChatRoom } from "@/components/chat/ChatRoom";
+import { ChatRoomLoader } from "@/components/chat/ChatRoomLoader";
 
+/** 정적 플롯은 프리렌더, 유저 생성 플롯(u-*)은 클라이언트에서 해석 */
 export function generateStaticParams() {
   return plots.map((p) => ({ id: p.id }));
 }
@@ -21,7 +21,5 @@ export default async function ChatRoomPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const plot = getPlot(id);
-  if (!plot) notFound();
-  return <ChatRoom plot={plot} />;
+  return <ChatRoomLoader id={id} />;
 }

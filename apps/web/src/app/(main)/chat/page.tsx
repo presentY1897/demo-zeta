@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { getPlot } from "@theta/mocks";
 import { Spinner } from "@theta/ui";
 import { useChatRooms } from "@/lib/chat-store";
+import { useAllPlots } from "@/lib/plots";
 import { formatRelativeTime } from "@/lib/time";
 import { PlotAvatar } from "@/components/chat/PlotAvatar";
 
@@ -14,8 +14,9 @@ function preview(content: string): string {
 
 export default function ChatListPage() {
   const rooms = useChatRooms();
+  const { hydrated, all } = useAllPlots();
 
-  if (rooms === null) {
+  if (rooms === null || !hydrated) {
     return (
       <div className="flex justify-center py-24">
         <Spinner />
@@ -24,7 +25,7 @@ export default function ChatListPage() {
   }
 
   const entries = Object.values(rooms)
-    .map((room) => ({ room, plot: getPlot(room.plotId) }))
+    .map((room) => ({ room, plot: all.find((p) => p.id === room.plotId) }))
     .filter((e) => e.plot !== undefined)
     .sort((a, b) => b.room.updatedAt - a.room.updatedAt);
 

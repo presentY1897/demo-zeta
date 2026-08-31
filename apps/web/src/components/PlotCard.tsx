@@ -3,7 +3,7 @@ import type { Plot } from "@theta/mocks";
 import { formatCount } from "@/lib/format";
 import { PlotCover } from "./PlotCover";
 
-export function PlotCard({ plot }: { plot: Plot }) {
+export function PlotCard({ plot, mine }: { plot: Plot; mine?: boolean }) {
   return (
     <Link
       href={`/plots/${plot.id}`}
@@ -14,6 +14,11 @@ export function PlotCard({ plot }: { plot: Plot }) {
           plot={plot}
           className="h-full w-full transition-transform duration-300 group-hover:scale-105"
         />
+        {mine && (
+          <span className="absolute left-2 top-2 rounded-md bg-primary px-1.5 py-0.5 text-[10px] font-bold text-white">
+            MY
+          </span>
+        )}
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 pb-2 pt-8">
           <p className="text-[15px] font-bold text-white">{plot.name}</p>
         </div>

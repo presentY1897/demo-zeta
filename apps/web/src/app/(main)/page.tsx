@@ -5,14 +5,18 @@ import Link from "next/link";
 import { plots, featuredTags, notices } from "@theta/mocks";
 import { Chip } from "@theta/ui";
 import { PlotCard } from "@/components/PlotCard";
+import { useAllPlots } from "@/lib/plots";
 
 export default function HomePage() {
   const [tag, setTag] = useState<string | null>(null);
+  const { mine } = useAllPlots();
+  const mineIds = useMemo(() => new Set(mine.map((p) => p.id)), [mine]);
 
+  // 내 플롯이 맨 앞, 나머지는 인기순
   const filtered = useMemo(() => {
-    const sorted = [...plots].sort((a, b) => b.chats - a.chats);
+    const sorted = [...mine, ...[...plots].sort((a, b) => b.chats - a.chats)];
     return tag ? sorted.filter((p) => p.tags.includes(tag)) : sorted;
-  }, [tag]);
+  }, [mine, tag]);
 
   const pinned = notices.find((n) => n.pinned);
 
@@ -46,7 +50,7 @@ export default function HomePage() {
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
         {filtered.map((plot) => (
-          <PlotCard key={plot.id} plot={plot} />
+          <PlotCard key={plot.id} plot={plot} mine={mineIds.has(plot.id)} />
         ))}
       </div>
 
