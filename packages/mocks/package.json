@@ -1,0 +1,16 @@
+{
+  "name": "@theta/mocks",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@theta/config": "workspace:*",
+    "typescript": "^5.7.0"
+  }
+}
