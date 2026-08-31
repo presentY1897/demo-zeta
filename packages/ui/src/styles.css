@@ -1,0 +1,40 @@
+/* Theta 디자인 토큰 — Tailwind v4 @theme */
+@theme {
+  /* 색상 */
+  --color-bg: #0b0b12;
+  --color-surface: #15151f;
+  --color-surface-2: #1d1d2b;
+  --color-line: #27273a;
+  --color-text: #f2f2f8;
+  --color-text-sub: #9a9ab2;
+  --color-text-faint: #626279;
+  --color-primary: #8b7cf7;
+  --color-primary-strong: #7a68f5;
+  --color-primary-soft: #8b7cf72e;
+  --color-accent: #f471b5;
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+
+  /* 타이포 */
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+    "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif;
+
+  /* 반경 */
+  --radius-card: 1rem;
+}
+
+html {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 모바일 웹: 탭 하이라이트/오버스크롤 제어 */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+body {
+  overscroll-behavior-y: none;
+}

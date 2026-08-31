@@ -1,0 +1,4 @@
+{
+  "extends": "@theta/config/react-library.json",
+  "include": ["src"]
+}
