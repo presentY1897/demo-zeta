@@ -1,4 +1,4 @@
-import { models, type MockUser } from "@theta/mocks";
+import { models } from "@theta/mocks";
 import { formatCompact, formatKrw, formatPct } from "@/lib/format";
 import { MODEL_COLORS } from "@/lib/palette";
 
@@ -8,18 +8,22 @@ function blendedCostPer1M(id: (typeof models)[number]["id"]): number {
   return (950 * m.costPer1MInputKrw + 430 * m.costPer1MOutputKrw) / 1380;
 }
 
-/** 유저의 모델별 토큰 비중 — 100% 가로 스택(2px 서피스 갭) + 상세 행 */
-export function TokenSplit({ user }: { user: MockUser }) {
-  const total = models.reduce((acc, m) => acc + user.tokensByModel[m.id], 0);
+/**
+ * 유저의 모델별 토큰 비중 — 100% 가로 스택(2px 서피스 갭) + 상세 행.
+ * 자사 모델(시드) 기준이며, 유저가 연결한 외부 모델의 실사용분은 여기 섞지 않는다.
+ */
+export function TokenSplit({ tokensByModel }: { tokensByModel: Record<string, number> }) {
+  const tokensOf = (id: string) => tokensByModel[id] ?? 0;
+  const total = models.reduce((acc, m) => acc + tokensOf(m.id), 0);
   if (total === 0) {
-    return <p className="text-sm text-text-faint">토큰 사용 기록이 없어요.</p>;
+    return <p className="text-sm text-text-faint">자사 모델 사용 기록이 없어요.</p>;
   }
 
   return (
     <div className="space-y-3">
       <div className="flex h-3 gap-[2px] overflow-hidden rounded-full">
         {models.map((m) => {
-          const share = user.tokensByModel[m.id] / total;
+          const share = tokensOf(m.id) / total;
           if (share <= 0) return null;
           return (
             <div
@@ -34,7 +38,7 @@ export function TokenSplit({ user }: { user: MockUser }) {
       </div>
       <ul className="space-y-1.5">
         {models.map((m) => {
-          const tokens = user.tokensByModel[m.id];
+          const tokens = tokensOf(m.id);
           const cost = (tokens / 1_000_000) * blendedCostPer1M(m.id);
           return (
             <li
