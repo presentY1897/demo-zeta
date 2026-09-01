@@ -19,6 +19,25 @@ T1(db) ─→ T2(인증) ─→ T3(플롯) ─→ T4(채팅) ─→ T6(오피스
                        T3 ─→ T8(커버 이미지) — T7 전 권장, 밀리면 09-02 후 재배포
 ```
 
+## 현재 상태 (2026-09-01)
+
+T1~T6·T8 **완료·main 병합**. 남은 것은 T7(배포)뿐이고, Neon·Vercel 계정 인증이 필요해
+유저와 함께 진행한다. 지금 main 기준으로 `pnpm test` **189개**, `pnpm e2e` **9개**가 통과하고
+`pnpm typecheck`·`pnpm build`도 통과한다.
+
+로컬에서 전 기능을 돌리는 최소 절차:
+
+```bash
+cp .env.example .env
+docker compose up -d
+pnpm install && pnpm db:migrate && pnpm db:seed
+pnpm dev          # web :3000 · office :3001
+```
+
+데모 계정은 `demo-new@theta.demo` · `demo-heavy@theta.demo` · `demo-creator@theta.demo`
+(비밀번호 `theta-demo`)이고 로그인 화면에서 원클릭으로도 들어갈 수 있다.
+오피스는 `.env`의 `ADMIN_PASSWORD`로 잠겨 있다.
+
 ## 공통 규칙
 
 - 티켓 1개 = worktree 브랜치 1개 = rebase → ff 병합 1회. 새 worktree에서는 `pnpm install` 필요.
