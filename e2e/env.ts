@@ -3,8 +3,9 @@ import { loadRootEnv } from "@theta/db/env";
 // 이 모듈이 env의 단일 진입점 — playwright.config과 스펙이 같은 값을 본다
 loadRootEnv(process.cwd());
 
-export const WEB_PORT = 3100;
-export const OFFICE_PORT = 3101;
+// 병렬 작업/CI에서 포트가 겹치지 않도록 환경변수로 옮길 수 있다
+export const WEB_PORT = Number(process.env.E2E_WEB_PORT ?? 3100);
+export const OFFICE_PORT = Number(process.env.E2E_OFFICE_PORT ?? 3101);
 
 export const WEB_BASE_URL = process.env.E2E_BASE_URL ?? `http://localhost:${WEB_PORT}`;
 export const OFFICE_BASE_URL = process.env.E2E_OFFICE_URL ?? `http://localhost:${OFFICE_PORT}`;
