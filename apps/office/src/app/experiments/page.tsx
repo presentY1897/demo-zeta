@@ -1,9 +1,12 @@
-import { experiments, type Experiment } from "@theta/mocks";
+import { db, experiments as experimentsTable, type Experiment } from "@theta/db";
+import { asc } from "drizzle-orm";
 import { Card, cn } from "@theta/ui";
 import { formatPct } from "@/lib/format";
 import { ACCENT, DEEMPH } from "@/lib/palette";
 
 export const metadata = { title: "A/B 실험" };
+
+export const dynamic = "force-dynamic";
 
 /**
  * 변형 비교 — 강조 형식: 실험군(B)은 강조색, 대조군(A)은 비강조 회색.
@@ -142,9 +145,11 @@ function ExperimentCard({ exp }: { exp: Experiment }) {
   );
 }
 
-export default function ExperimentsPage() {
-  const running = experiments.filter((e) => e.status === "running");
-  const done = experiments.filter((e) => e.status === "done");
+export default async function ExperimentsPage() {
+  // 시드 데이터를 DB에서 읽는다(읽기 전용) — mocks 직접 import는 걷어냈다
+  const rows = await db.select().from(experimentsTable).orderBy(asc(experimentsTable.startedAt));
+  const running = rows.filter((e) => e.status === "running");
+  const done = rows.filter((e) => e.status === "done");
 
   return (
     <div className="max-w-3xl space-y-4">

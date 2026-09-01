@@ -25,18 +25,22 @@ import {
   weeklyBuckets,
   type RangeDays,
 } from "@/lib/metrics-utils";
-import { MODEL_COLORS } from "@/lib/palette";
+import { DEEMPH, MODEL_COLORS } from "@/lib/palette";
+import type { MetricPoint } from "@/lib/metric-point";
 
-export default function CostPage() {
+/** 비용·모델 — 매출·GPU 비용·모델별 분해는 시드 전용이고, 처리 토큰만 실사용을 합산한다 */
+export function CostView({ series }: { series: MetricPoint[] }) {
   const [range, setRange] = useState<RangeDays>(30);
 
   const view = useMemo(() => {
-    const { current, previous } = sliceRange(range);
+    const { current, previous } = sliceRange(series, range);
     const labels = current.map((m) => shortDate(m.date));
 
     const gpu = sum(current.map((m) => m.gpuCostKrw));
     const gpuPrev = previous ? sum(previous.map((m) => m.gpuCostKrw)) : null;
-    const tokens = sum(current.map(totalTokens));
+    const seedTokens = sum(current.map(totalTokens));
+    const realTokens = sum(current.map((m) => m.realTokens));
+    const tokens = seedTokens + realTokens;
     const revenue = sum(current.map((m) => m.revenueKrw));
     const fee = sum(current.map((m) => m.feeKrw));
     const dauSum = sum(current.map((m) => m.dau));
@@ -44,14 +48,23 @@ export default function CostPage() {
     // 주간 모델별 토큰 스택
     const buckets = weeklyBuckets(current);
     const weekLabels = buckets.map((b) => `${shortDate(b[0]!.date)}~`);
-    const weeklyTokenSeries = models.map((model) => ({
-      key: model.id,
-      label: model.label,
-      color: MODEL_COLORS[model.id],
-      values: buckets.map((b) =>
-        sum(b.map((m) => m.tokens[model.id].input + m.tokens[model.id].output)),
-      ),
-    }));
+    const weeklyTokenSeries = [
+      ...models.map((model) => ({
+        key: model.id,
+        label: model.label,
+        color: MODEL_COLORS[model.id],
+        values: buckets.map((b) =>
+          sum(b.map((m) => m.tokens[model.id].input + m.tokens[model.id].output)),
+        ),
+      })),
+      // 실사용은 유저의 BYOK 모델이라 자사 모델에 귀속시킬 수 없다 — 별도 세그먼트로 둔다
+      {
+        key: "real",
+        label: "실사용(추정)",
+        color: DEEMPH,
+        values: buckets.map((b) => sum(b.map((m) => m.realTokens))),
+      },
+    ];
 
     // 일간 모델별 GPU 비용
     const dailyCostSeries = models.map((model) => ({
@@ -61,12 +74,12 @@ export default function CostPage() {
       values: current.map((m) => Math.round(modelCostKrw(m, model.id))),
     }));
 
-    // 구간 내 모델별 토큰 비중
+    // 구간 내 모델별 토큰 비중 — 분모는 자사 모델 토큰만(실사용 BYOK는 자사 모델이 아니다)
     const shareByModel = models.map((model) => {
       const t = sum(
         current.map((m) => m.tokens[model.id].input + m.tokens[model.id].output),
       );
-      return { model, tokens: t, share: tokens > 0 ? t / tokens : 0 };
+      return { model, tokens: t, share: seedTokens > 0 ? t / seedTokens : 0 };
     });
 
     return {
@@ -75,6 +88,7 @@ export default function CostPage() {
       gpuDelta: gpuPrev !== null ? deltaPct(gpu, gpuPrev) : null,
       gpuTrend: downsample(current.map((m) => m.gpuCostKrw)),
       tokens,
+      realTokens,
       margin: revenue > 0 ? (revenue - fee - gpu) / revenue : 0,
       costPerDau: dauSum > 0 ? gpu / dauSum : 0,
       weekLabels,
@@ -82,7 +96,7 @@ export default function CostPage() {
       dailyCostSeries,
       shareByModel,
     };
-  }, [range]);
+  }, [series, range]);
 
   return (
     <div className="space-y-5">
@@ -105,7 +119,11 @@ export default function CostPage() {
           upIsGood={false}
           trend={view.gpuTrend}
         />
-        <StatTile label="처리 토큰" value={`${formatCompact(view.tokens)} 토큰`} />
+        <StatTile
+          label="처리 토큰"
+          value={`${formatCompact(view.tokens)} 토큰`}
+          note={view.realTokens > 0 ? "실사용 추정치 포함" : undefined}
+        />
         <StatTile label="유저·일당 서빙 비용" value={formatKrw(view.costPerDau)} />
         <StatTile label="공헌 마진율" value={formatPct(view.margin)} />
       </div>
@@ -113,7 +131,7 @@ export default function CostPage() {
       <div className="grid gap-4 xl:grid-cols-2">
         <ChartCard
           title="주간 모델별 토큰"
-          subtitle="입력+출력 합계, 7일 묶음"
+          subtitle="입력+출력 합계, 7일 묶음 · 실사용은 추정치"
           table={
             <SeriesTable
               labels={view.weekLabels}
@@ -131,7 +149,7 @@ export default function CostPage() {
 
         <ChartCard
           title="모델별 GPU 비용"
-          subtitle="일간, 원화 기준"
+          subtitle="일간, 원화 기준 · 시드 데이터"
           table={
             <SeriesTable
               labels={view.labels}
@@ -149,7 +167,11 @@ export default function CostPage() {
       </div>
 
       <Card className="overflow-x-auto p-4">
-        <h2 className="mb-3 text-sm font-bold">모델 원가표</h2>
+        <h2 className="text-sm font-bold">모델 원가표</h2>
+        <p className="mb-3 mt-0.5 text-[12px] text-text-faint">
+          원가·비중은 시드 데이터 기준이에요. 유저가 연결한 외부 모델(BYOK)은 자사 원가에
+          대응하지 않아 여기 섞지 않습니다.
+        </p>
         <table className="w-full min-w-[560px] text-[13px]">
           <thead className="text-left text-[12px] text-text-sub">
             <tr className="border-b border-line">

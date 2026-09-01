@@ -1,4 +1,5 @@
-import { dailyMetrics, models, type DailyMetric, type ModelId } from "@theta/mocks";
+import { models, type DailyMetric, type ModelId } from "@theta/mocks";
+import type { MetricPoint } from "./metric-point";
 
 export type RangeDays = 7 | 30 | 90;
 
@@ -8,15 +9,17 @@ export const RANGE_OPTIONS: { value: RangeDays; label: string }[] = [
   { value: 90, label: "90일" },
 ];
 
-/** 선택 구간과 (있다면) 직전 동일 길이 구간 */
-export function sliceRange(days: RangeDays): {
-  current: DailyMetric[];
-  previous: DailyMetric[] | null;
-} {
-  const current = dailyMetrics.slice(-days);
-  const prevStart = dailyMetrics.length - days * 2;
-  const previous =
-    prevStart >= 0 ? dailyMetrics.slice(prevStart, prevStart + days) : null;
+/**
+ * 선택 구간과 (있다면) 직전 동일 길이 구간.
+ * 시계열을 인자로 받는다 — 이제 시드 고정이 아니라 시드+실사용 합산이라 호출부가 정한다.
+ */
+export function sliceRange(
+  series: MetricPoint[],
+  days: RangeDays,
+): { current: MetricPoint[]; previous: MetricPoint[] | null } {
+  const current = series.slice(-days);
+  const prevStart = series.length - days * 2;
+  const previous = prevStart >= 0 ? series.slice(prevStart, prevStart + days) : null;
   return { current, previous };
 }
 
@@ -51,8 +54,8 @@ export function modelCostKrw(m: DailyMetric, id: ModelId): number {
 }
 
 /** 뒤에서부터 7일 단위 묶음 (앞쪽 자투리는 버림) — 주간 스택 바용 */
-export function weeklyBuckets(metrics: DailyMetric[]): DailyMetric[][] {
-  const buckets: DailyMetric[][] = [];
+export function weeklyBuckets<T>(metrics: T[]): T[][] {
+  const buckets: T[][] = [];
   for (let end = metrics.length; end - 7 >= 0; end -= 7) {
     buckets.unshift(metrics.slice(end - 7, end));
   }

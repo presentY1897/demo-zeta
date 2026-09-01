@@ -9,7 +9,7 @@
 | [T3](./T3-plots.md) | 플롯 서버화 — 공개 피드 | `feature-plots-db` | T2 | **완료** |
 | [T4](./T4-chat.md) | 채팅 영속화 | `feature-chat-db` | T3 | **완료** |
 | [T5](./T5-notices.md) | 공지 연동 — 오피스↔웹 | `feature-notices-db` | T2 | **완료** |
-| [T6](./T6-office.md) | 오피스 실데이터화 | `feature-office-db` | T4, T2 | 대기 |
+| [T6](./T6-office.md) | 오피스 실데이터화 | `feature-office-db` | T4, T2 | **완료** |
 | [T7](./T7-deploy.md) | 배포 — Neon·Vercel | (설정 작업) | T1~T6 | 대기 |
 | [T8](./T8-cover-images.md) | 커버 이미지 업로드 | `feature-cover-images` | T3 | **완료** |
 

@@ -12,6 +12,7 @@ export function StatTile({
   deltaLabel,
   upIsGood = true,
   trend,
+  note,
 }: {
   label: string;
   value: string;
@@ -20,6 +21,8 @@ export function StatTile({
   deltaLabel?: string;
   upIsGood?: boolean;
   trend?: number[];
+  /** 값의 성격을 짚는 짧은 주석(예: "실사용 추정치 포함") */
+  note?: string;
 }) {
   const showDelta = delta !== null && delta !== undefined;
   const up = showDelta && delta >= 0;
@@ -44,6 +47,7 @@ export function StatTile({
             )}
           </p>
         )}
+        {note && <p className="mt-0.5 text-[11px] text-text-faint">{note}</p>}
       </div>
       {trend && trend.length >= 2 && <Sparkline values={trend} />}
     </Card>
