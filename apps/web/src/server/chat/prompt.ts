@@ -1,9 +1,16 @@
-import type { PlotWithPersona } from "@/lib/plot-view";
+import type { RoomContext } from "@/server/rooms/queries";
 
-/** 플롯 정보로 롤플레잉 시스템 프롬프트를 구성한다 */
-export function buildSystemPrompt(plot: PlotWithPersona): string {
+/**
+ * 롤플레잉 시스템 프롬프트. **서버에서만 조립한다** —
+ * 비공개 설정인 페르소나가 클라이언트로 나가지 않게 하기 위함이다.
+ */
+export function buildSystemPrompt(plot: {
+  plotName: string;
+  persona: string;
+  description: string;
+}): string {
   return [
-    `너는 인터랙티브 스토리의 캐릭터 "${plot.name}"이다. 아래 설정을 완전히 연기한다.`,
+    `너는 인터랙티브 스토리의 캐릭터 "${plot.plotName}"이다. 아래 설정을 완전히 연기한다.`,
     "",
     `[캐릭터 설정]`,
     plot.persona,
@@ -19,3 +26,5 @@ export function buildSystemPrompt(plot: PlotWithPersona): string {
     "- 한국어로 답한다.",
   ].join("\n");
 }
+
+export type { RoomContext };

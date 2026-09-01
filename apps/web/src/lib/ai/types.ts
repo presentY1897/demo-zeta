@@ -15,9 +15,12 @@ export interface ChatTurn {
 }
 
 export interface ChatRequestBody {
+  /** 대화 내용은 서버가 방에서 읽는다 — 클라이언트는 방 id와 새 발화만 보낸다 */
+  roomId: string;
   provider: ProviderConfig;
-  system: string;
-  /** 모의 응답 생성에 쓰는 캐릭터 이름 */
-  plotName: string;
-  messages: ChatTurn[];
+  /** 이번에 새로 보내는 유저 메시지. 재생성·재시도처럼 이미 저장된 발화를 다시 쓸 때는 생략 */
+  userMessage?: string;
 }
+
+/** /api/chat이 방금 저장한 유저 메시지의 seq를 알려주는 응답 헤더 */
+export const USER_SEQ_HEADER = "x-theta-user-seq";
