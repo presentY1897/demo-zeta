@@ -10,7 +10,7 @@
 | [T4](./T4-chat.md) | 채팅 영속화 | `feature-chat-db` | T3 | **완료** |
 | [T5](./T5-notices.md) | 공지 연동 — 오피스↔웹 | `feature-notices-db` | T2 | **완료** |
 | [T6](./T6-office.md) | 오피스 실데이터화 | `feature-office-db` | T4, T2 | **완료** |
-| [T7](./T7-deploy.md) | 배포 — Neon·Vercel | (설정 작업) | T1~T6 | 대기 |
+| [T7](./T7-deploy.md) | 배포 — Neon·Vercel | (설정 작업) | T1~T6 | **완료** |
 | [T8](./T8-cover-images.md) | 커버 이미지 업로드 | `feature-cover-images` | T3 | **완료** |
 
 ```
@@ -21,9 +21,11 @@ T1(db) ─→ T2(인증) ─→ T3(플롯) ─→ T4(채팅) ─→ T6(오피스
 
 ## 현재 상태 (2026-09-01)
 
-T1~T6·T8 **완료·main 병합**. 남은 것은 T7(배포)뿐이고, Neon·Vercel 계정 인증이 필요해
-유저와 함께 진행한다. 지금 main 기준으로 `pnpm test` **189개**, `pnpm e2e` **9개**가 통과하고
-`pnpm typecheck`·`pnpm build`도 통과한다.
+**T1~T8 전부 완료·main 병합·배포 완료.** main 기준 `pnpm test` **197개**, `pnpm e2e` **9개** 통과
+(E2E는 로컬과 **배포 URL 양쪽에서** 통과), `pnpm typecheck`·`pnpm build`도 통과.
+
+- 유저 앱 <https://theta-web-ten.vercel.app> · 오피스 <https://theta-office.vercel.app>
+- 남은 것은 CI(GitHub Actions)뿐이다 — `pnpm test`/`pnpm e2e`를 그대로 돌리면 된다.
 
 로컬에서 전 기능을 돌리는 최소 절차:
 

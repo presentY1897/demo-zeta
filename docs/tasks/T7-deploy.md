@@ -1,6 +1,6 @@
 # T7 — 배포: Neon·Vercel
 
-- 상태: 대기 · 브랜치: 없음(설정 작업, 코드 변경 생기면 `chore` 커밋) · 의존: T1~T6
+- 상태: **완료** · 브랜치: 없음(설정 작업, 코드 변경 생기면 `chore` 커밋) · 의존: T1~T6
 - ⚠️ **Neon·Vercel 계정 로그인이 필요해 유저와 함께 진행하는 티켓** (CLI 인증 또는 콘솔 작업)
 - 설계 근거: [server-design.md](../server-design.md) §1(아키텍처)·§7(일정)
 
@@ -16,13 +16,13 @@
 
 ## 작업 항목
 
-- [ ] Neon 프로젝트 생성 → **풀드(pooled) 커넥션 스트링** 확보 (pg Pool + 서버리스 특성상 필수)
-- [ ] 로컬에서 Neon URL로 `db:migrate` + `db:seed` 실행, 카운트 검증(T1과 동일 기준)
-- [ ] Vercel 프로젝트 2개 — 모노레포 root directory를 각각 `apps/web` / `apps/office`로 지정, pnpm+turbo 빌드 확인
-- [ ] 환경변수 — 두 프로젝트에 `DATABASE_URL`(동일 Neon), web에 `SESSION_SECRET`·`GOOGLE_CLIENT_ID`·`GOOGLE_CLIENT_SECRET`, office에 `ADMIN_PASSWORD`(+ 서명용 `SESSION_SECRET`)
-- [ ] Google 콘솔 — OAuth 클라이언트의 redirect URI에 프로덕션 도메인 콜백 추가(로컬 것과 병기), 동의 화면 프로덕션 게시(비민감 스코프라 심사 불요)
-- [ ] 프로덕션 배포 → 배포 스모크(아래) 전 항목
-- [ ] README — 배포 URL 2개, 데모 계정(`theta-demo`), **오피스 비밀번호도 README에 공개**(아래 결정). **체험 경로를 2트랙으로 명시**: ① 기본 — 배포 URL 접속(설치 불요, 리뷰어 주 경로), ② 선택 — 로컬 실행(docker + `.env.example` 복사만으로 동작, env 키는 필요할 때만: 키별 역할·미설정 시 동작 표 + `docs/setup-google-oauth.md` 링크)
+- [x] Neon 프로젝트 생성 → **풀드(pooled) 커넥션 스트링** 확보 (pg Pool + 서버리스 특성상 필수)
+- [x] 로컬에서 Neon URL로 `db:migrate` + `db:seed` 실행, 카운트 검증(T1과 동일 기준)
+- [x] Vercel 프로젝트 2개 — 모노레포 root directory를 각각 `apps/web` / `apps/office`로 지정, pnpm+turbo 빌드 확인
+- [x] 환경변수 — 두 프로젝트에 `DATABASE_URL`(동일 Neon), web에 `SESSION_SECRET`·`GOOGLE_CLIENT_ID`·`GOOGLE_CLIENT_SECRET`, office에 `ADMIN_PASSWORD`(+ 서명용 `SESSION_SECRET`)
+- [x] Google 콘솔 — OAuth 클라이언트의 redirect URI에 프로덕션 도메인 콜백 추가(로컬 것과 병기), 동의 화면 프로덕션 게시(비민감 스코프라 심사 불요)
+- [x] 프로덕션 배포 → 배포 스모크(아래) 전 항목
+- [x] README — 배포 URL 2개, 데모 계정(`theta-demo`), **오피스 비밀번호도 README에 공개**(아래 결정). **체험 경로를 2트랙으로 명시**: ① 기본 — 배포 URL 접속(설치 불요, 리뷰어 주 경로), ② 선택 — 로컬 실행(docker + `.env.example` 복사만으로 동작, env 키는 필요할 때만: 키별 역할·미설정 시 동작 표 + `docs/setup-google-oauth.md` 링크)
 
 ## 배포 스모크 (완료 기준)
 
@@ -36,8 +36,8 @@
 
 ## 테스트
 
-- [ ] T3~T6에서 누적한 **Playwright 스위트를 `BASE_URL=배포 URL`로 재실행** — 구글 실로그인 등 써드파티 구간만 제외. 배포 환경(서버리스·Neon)에서 스트리밍·세션이 로컬과 동일함을 자동으로 확인
-- [ ] 위 배포 스모크 체크리스트는 수동으로 1회 병행(E2E가 못 덮는 BYOK 실 프로바이더·구글 로그인)
+- [x] T3~T6에서 누적한 **Playwright 스위트를 `BASE_URL=배포 URL`로 재실행** — 구글 실로그인 등 써드파티 구간만 제외. 배포 환경(서버리스·Neon)에서 스트리밍·세션이 로컬과 동일함을 자동으로 확인
+- [x] 위 배포 스모크 체크리스트는 수동으로 1회 병행(E2E가 못 덮는 BYOK 실 프로바이더·구글 로그인)
 
 ## 구현 노트
 
@@ -64,3 +64,26 @@ T6의 제재 효력이 이 프로젝트의 시연 포인트인데 그걸 배포�
 
 E2E는 붙이지 않았다 — 초기화가 DB를 통째로 비워 같은 스위트의 다른 시나리오와 충돌한다.
 통합 테스트 3개(빈 DB 채우기·흐트러진 상태 원복·비인증 401)로 덮었다.
+
+## 구현 결과 (2026-09-01)
+
+- 유저 앱 <https://theta-web-ten.vercel.app> · 오피스 <https://theta-office.vercel.app>
+- Neon(us-east-2 풀드) 마이그레이션·시드 완료, 카운트 T1과 동일.
+- Vercel 프로젝트 2개(`theta-web`·`theta-office`), 각각 Root Directory를 `apps/web`·`apps/office`로.
+  GitHub 저장소가 연결돼 있어 **main에 push하면 두 앱이 자동 재배포**된다.
+- **배포 URL로 E2E 9개 전부 통과.** 이 재실행이 실제로 버그를 하나 잡았다(아래).
+
+배운 것:
+
+- **CLI `vercel deploy`로는 모노레포가 빌드되지 않는다.** 하위 디렉터리에서 배포하면 그 폴더만
+  올라가 `npm install`이 `workspace:` 프로토콜에서 실패하고, 루트에서 배포하면 루트 build 산출물을
+  찾는다. Root Directory를 프로젝트 설정에 넣고 **Git 연동으로 배포**해야 한다.
+- **서버리스는 클라이언트 연결 종료를 함수에 전파하지 않는다.** 배포 스모크 3번(중단 시 부분 보존)이
+  여기서 실패했고, T4에 중단 신호 엔드포인트를 추가해 고쳤다(T4 문서의 "배포 후 발견·수정" 참고).
+  **로컬에서 통과한 스위트를 배포 URL로 다시 돌리는 것의 값이 그대로 드러난 사례다.**
+- Google 로그인과 BYOK 실 프로바이더는 여전히 수동 확인 구간이다. BYOK 키 유효성은 확인했다.
+
+## 배포 후 데이터 관리
+
+E2E와 방문자가 남긴 데이터는 오피스 대시보드의 **"초기 상태로 되돌리기"** 로 정리한다
+(`POST /api/admin/demo-reset` — `pnpm db:seed`와 같은 함수). 배포 직후 1회 실행해 확인했다.
