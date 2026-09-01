@@ -1,10 +1,8 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { getNotice, notices } from "@theta/mocks";
+import { loadNoticeOr404 } from "@/server/notices";
 
-export function generateStaticParams() {
-  return notices.map((n) => ({ id: n.id }));
-}
+// 공지가 DB에서 오므로 프리렌더하지 않는다 (없는 id는 404)
+export const dynamic = "force-dynamic";
 
 export default async function NoticeDetailPage({
   params,
@@ -12,8 +10,7 @@ export default async function NoticeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const notice = getNotice(id);
-  if (!notice) notFound();
+  const notice = await loadNoticeOr404(id);
 
   return (
     <div className="mx-auto max-w-lg space-y-5">

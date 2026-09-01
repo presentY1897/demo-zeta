@@ -1,27 +1,26 @@
 import { defineConfig, devices } from "@playwright/test";
-import { loadRootEnv } from "@theta/db/env";
-
-loadRootEnv(process.cwd());
+import {
+  ADMIN_PASSWORD,
+  E2E_DATABASE_URL,
+  OFFICE_BASE_URL,
+  OFFICE_PORT,
+  SESSION_SECRET,
+  WEB_BASE_URL,
+  WEB_PORT,
+} from "./e2e/env";
 
 /**
  * 스모크 E2E. 기본은 로컬 dev 서버를 자동 기동하고 전용 DB(theta_e2e)에 시드를 넣는다.
  * `E2E_BASE_URL`을 주면 이미 떠 있는 서버(배포 URL 포함)를 그대로 쓴다 — T7의 배포 스모크가 이 경로다.
  */
 const externalWeb = process.env.E2E_BASE_URL;
-const externalOffice = process.env.E2E_OFFICE_URL;
-
-const WEB_PORT = 3100;
-const OFFICE_PORT = 3101;
-const webBaseUrl = externalWeb ?? `http://localhost:${WEB_PORT}`;
-const officeBaseUrl = externalOffice ?? `http://localhost:${OFFICE_PORT}`;
-
-export const E2E_DATABASE_URL =
-  process.env.E2E_DATABASE_URL ?? "postgres://postgres:postgres@localhost:5433/theta_e2e";
+const webBaseUrl = WEB_BASE_URL;
+const officeBaseUrl = OFFICE_BASE_URL;
 
 const serverEnv = {
   DATABASE_URL: E2E_DATABASE_URL,
-  SESSION_SECRET: process.env.SESSION_SECRET ?? "e2e-session-secret",
-  ADMIN_PASSWORD: process.env.ADMIN_PASSWORD ?? "theta-office",
+  SESSION_SECRET,
+  ADMIN_PASSWORD,
   // 구글 버튼이 뜨면 시나리오가 흔들리므로 E2E에서는 끈다
   GOOGLE_CLIENT_ID: "",
   GOOGLE_CLIENT_SECRET: "",

@@ -1,12 +1,12 @@
-import Link from "next/link";
-import { featuredTags, notices } from "@theta/mocks";
+import { featuredTags } from "@theta/mocks";
 import { db } from "@theta/db";
 import { PlotCard } from "@/components/PlotCard";
+import { PinnedNoticeBanner } from "@/components/PinnedNoticeBanner";
 import { TagFilter } from "@/components/TagFilter";
 import { getCurrentUser } from "@/server/auth/current-user";
 import { listPlots } from "@/server/plots/queries";
 
-// 로그인 유저의 비공개 플롯 노출 여부가 요청마다 달라지므로 캐시하지 않는다
+// 비공개 플롯 노출 여부와 고정 공지가 요청마다 달라지므로 캐시하지 않는다
 export const dynamic = "force-dynamic";
 
 export default async function HomePage({
@@ -23,24 +23,9 @@ export default async function HomePage({
       : [...featuredTags];
   const plots = await listPlots(db, { viewerId: user?.id ?? null, tag: activeTag });
 
-  const pinned = notices.find((n) => n.pinned);
-
   return (
     <div className="space-y-4">
-      {pinned && (
-        <Link
-          href={`/notices/${pinned.id}`}
-          className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary-soft px-4 py-2.5 text-[13px] text-text-sub transition-colors hover:border-primary/60"
-        >
-          <span className="shrink-0 rounded-md bg-primary px-1.5 py-0.5 text-[11px] font-bold text-white">
-            {pinned.category}
-          </span>
-          <span className="line-clamp-1 flex-1">{pinned.title}</span>
-          <span aria-hidden className="text-text-faint">
-            ›
-          </span>
-        </Link>
-      )}
+      <PinnedNoticeBanner />
 
       <TagFilter tags={chips} active={activeTag} />
 
