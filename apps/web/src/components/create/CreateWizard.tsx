@@ -128,6 +128,7 @@ export function CreateWizard({ user }: { user: PublicUser | null }) {
     creator: user.nickname,
     emoji: draft.emoji,
     gradient: draft.gradient,
+    coverUrl: null,
     chats: 0,
     likes: 0,
     visibility: draft.visibility,

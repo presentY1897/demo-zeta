@@ -1,6 +1,6 @@
 import { and, desc, eq, or, sql } from "drizzle-orm";
 import { plots, users, type Database } from "@theta/db";
-import type { PlotView, PlotWithPersona } from "@/lib/plot-view";
+import { coverImageUrl, type PlotView, type PlotWithPersona } from "@/lib/plot-view";
 
 const selection = {
   id: plots.id,
@@ -14,6 +14,7 @@ const selection = {
   emoji: plots.emoji,
   gradientFrom: plots.gradientFrom,
   gradientTo: plots.gradientTo,
+  coverImageId: plots.coverImageId,
   visibility: plots.visibility,
   chatsCount: plots.chatsCount,
   likesCount: plots.likesCount,
@@ -33,6 +34,7 @@ interface PlotRow {
   emoji: string;
   gradientFrom: string;
   gradientTo: string;
+  coverImageId: string | null;
   visibility: "public" | "private";
   chatsCount: number;
   likesCount: number;
@@ -51,6 +53,7 @@ function toView(row: PlotRow, viewerId: string | null): PlotView {
     tags: row.tags,
     emoji: row.emoji,
     gradient: [row.gradientFrom, row.gradientTo],
+    coverUrl: row.coverImageId ? coverImageUrl(row.coverImageId) : null,
     creator: row.creator ?? "알 수 없음",
     chats: row.chatsCount,
     likes: row.likesCount,
