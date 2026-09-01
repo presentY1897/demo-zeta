@@ -1,6 +1,7 @@
 {
   "name": "theta",
   "private": true,
+  "type": "module",
   "packageManager": "pnpm@9.15.9",
   "engines": {
     "node": ">=20"
@@ -11,9 +12,15 @@
     "dev:office": "turbo dev --filter=@theta/office",
     "build": "turbo build",
     "typecheck": "turbo typecheck",
-    "lint": "turbo lint"
+    "lint": "turbo lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "pnpm --filter @theta/db generate",
+    "db:migrate": "pnpm --filter @theta/db migrate",
+    "db:seed": "pnpm --filter @theta/db seed"
   },
   "devDependencies": {
-    "turbo": "^2.3.3"
+    "turbo": "^2.3.3",
+    "vitest": "^4.1.11"
   }
 }
