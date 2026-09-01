@@ -14,6 +14,8 @@ export interface RoomSummary {
   plotName: string;
   emoji: string;
   gradient: [string, string];
+  /** 업로드한 커버 이미지 URL. null이면 이모지 + 그라디언트 폴백 */
+  coverUrl: string | null;
   lastMessage: string | null;
   updatedAt: number;
 }

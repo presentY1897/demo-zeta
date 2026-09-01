@@ -19,6 +19,10 @@ export const COVER_LIMITS = {
 export const COVER_CONTENT_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 export type CoverContentType = (typeof COVER_CONTENT_TYPES)[number];
 
+export function isCoverContentType(value: string): value is CoverContentType {
+  return (COVER_CONTENT_TYPES as readonly string[]).includes(value);
+}
+
 /** 사용자에게 보여 줄 용량 표기 */
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes}B`;

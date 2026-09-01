@@ -1,4 +1,4 @@
-import { COVER_CONTENT_TYPES, type CoverContentType } from "@/lib/cover-limits";
+import type { CoverContentType } from "@/lib/cover-limits";
 
 /**
  * 업로드 바이트에서 이미지 종류와 픽셀 크기를 **직접** 읽는다.
@@ -21,10 +21,6 @@ export function inspectImage(bytes: Uint8Array): ImageInfo | null {
   if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return inspectJpeg(bytes);
   if (ascii(bytes, 0, 4) === "RIFF" && ascii(bytes, 8, 4) === "WEBP") return inspectWebp(bytes);
   return null;
-}
-
-export function isCoverContentType(value: string): value is CoverContentType {
-  return (COVER_CONTENT_TYPES as readonly string[]).includes(value);
 }
 
 /** PNG는 시그니처 바로 뒤 IHDR 청크에 크기가 고정 위치로 들어 있다 */

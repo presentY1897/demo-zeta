@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 /** 실행마다 겹치지 않는 계정 정보 */
 export function newAccount(prefix: string) {
@@ -34,6 +34,8 @@ export interface PlotDraft {
   firstMessage: string;
   tag: string;
   visibility: "공개" | "비공개";
+  /** 1단계에서 첨부할 커버 이미지(선택) — 미첨부면 이모지 폴백 경로로 간다 */
+  cover?: { name: string; mimeType: string; buffer: Buffer };
 }
 
 /** 만들기 위저드 4단계를 끝까지 진행하고 생성된 플롯 프로필 URL로 이동한다 */
@@ -42,6 +44,11 @@ export async function createPlot(page: Page, draft: PlotDraft): Promise<void> {
 
   await page.getByLabel("캐릭터 이름").fill(draft.name);
   await page.getByLabel("한 줄 소개").fill(draft.tagline);
+  if (draft.cover) {
+    await page.getByLabel("커버 이미지").setInputFiles(draft.cover);
+    // 브라우저 리사이즈가 끝나야 미리보기가 뜬다 — 여기서 기다려야 제출이 흔들리지 않는다
+    await expect(page.getByAltText("커버 이미지 미리보기")).toBeVisible({ timeout: 30_000 });
+  }
   await page.getByRole("button", { name: "다음" }).click();
 
   await page.getByLabel("세계관 소개").fill(draft.description);

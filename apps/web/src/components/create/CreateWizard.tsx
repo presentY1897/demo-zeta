@@ -6,8 +6,11 @@ import { useRouter } from "next/navigation";
 import { Button, Chip, cn } from "@theta/ui";
 import type { PublicUser } from "@/server/auth/http";
 import type { PlotView } from "@/lib/plot-view";
+import { coverToFile, releaseCover, type PreparedCover } from "@/lib/cover-image";
 import { RoleplayContent } from "@/components/chat/MessageBubble";
+import { PlotAvatar } from "@/components/chat/PlotAvatar";
 import { PlotCard } from "@/components/PlotCard";
+import { CoverImageField } from "./CoverImageField";
 import {
   emptyDraft,
   EMOJIS,
@@ -22,6 +25,20 @@ import { TextAreaField, TextField } from "./fields";
 
 const STEP_LABELS = ["프로필", "페르소나", "첫 메시지", "공개 설정"];
 
+/** 커버 이미지를 먼저 올려 id를 받는다. 서버 거부 사유(용량·형식)를 그대로 사용자에게 보여 준다 */
+async function uploadCover(
+  cover: PreparedCover,
+): Promise<{ ok: true; id: string } | { ok: false; message: string }> {
+  const form = new FormData();
+  form.set("file", coverToFile(cover));
+  const res = await fetch("/api/uploads", { method: "POST", body: form });
+  const data = (await res.json().catch(() => ({}))) as { id?: string; error?: string };
+  if (!res.ok || !data.id) {
+    return { ok: false, message: data.error ?? "커버 이미지를 올리지 못했어요." };
+  }
+  return { ok: true, id: data.id };
+}
+
 /** 로그인 유저는 서버 세션에서 온다(페이지가 RSC에서 주입) */
 export function CreateWizard({ user }: { user: PublicUser | null }) {
   const router = useRouter();
@@ -30,6 +47,7 @@ export function CreateWizard({ user }: { user: PublicUser | null }) {
   const [draft, setDraft] = useState<PlotDraft>(emptyDraft);
   const [error, setError] = useState<string | null>(null);
   const [customTag, setCustomTag] = useState("");
+  const [cover, setCover] = useState<PreparedCover | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   if (!user) {
@@ -86,9 +104,19 @@ export function CreateWizard({ user }: { user: PublicUser | null }) {
       setStep(step + 1);
       return;
     }
-    // 마지막 스텝: 서버에 플롯 생성
+    // 마지막 스텝: (커버가 있으면) 이미지 업로드 → 플롯 생성
     setSubmitting(true);
     try {
+      let coverImageId: string | null = null;
+      if (cover) {
+        const uploaded = await uploadCover(cover);
+        if (!uploaded.ok) {
+          setError(uploaded.message);
+          return;
+        }
+        coverImageId = uploaded.id;
+      }
+
       const res = await fetch("/api/plots", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -101,6 +129,7 @@ export function CreateWizard({ user }: { user: PublicUser | null }) {
           tags: draft.tags,
           emoji: draft.emoji,
           gradient: draft.gradient,
+          coverImageId,
           visibility: draft.visibility,
         }),
       });
@@ -109,6 +138,7 @@ export function CreateWizard({ user }: { user: PublicUser | null }) {
         setError(data.error ?? "플롯을 만들지 못했어요. 잠시 후 다시 시도해 주세요.");
         return;
       }
+      releaseCover(cover);
       router.push(`/plots/${data.id}`);
       router.refresh();
     } catch {
@@ -128,7 +158,7 @@ export function CreateWizard({ user }: { user: PublicUser | null }) {
     creator: user.nickname,
     emoji: draft.emoji,
     gradient: draft.gradient,
-    coverUrl: null,
+    coverUrl: cover?.previewUrl ?? null,
     chats: 0,
     likes: 0,
     visibility: draft.visibility,
@@ -178,6 +208,7 @@ export function CreateWizard({ user }: { user: PublicUser | null }) {
             max={LIMITS.tagline}
             placeholder="예) 계약 연애를 제안한 재벌 3세"
           />
+          <CoverImageField cover={cover} onChange={setCover} />
           <div className="space-y-1.5">
             <p className="text-[13px] font-semibold text-text-sub">커버 이모지</p>
             <div className="grid grid-cols-8 gap-1.5">
@@ -265,15 +296,7 @@ export function CreateWizard({ user }: { user: PublicUser | null }) {
             <div className="space-y-1.5">
               <p className="text-[13px] font-semibold text-text-sub">미리보기</p>
               <div className="flex items-start gap-2.5">
-                <div
-                  aria-hidden
-                  className="flex size-[34px] shrink-0 items-center justify-center rounded-full text-[17px]"
-                  style={{
-                    background: `linear-gradient(135deg, ${draft.gradient[0]}, ${draft.gradient[1]})`,
-                  }}
-                >
-                  {draft.emoji}
-                </div>
+                <PlotAvatar plot={previewPlot} size={34} />
                 <div className="max-w-[85%] rounded-2xl rounded-tl-md bg-surface-2 px-4 py-3">
                   <RoleplayContent text={draft.firstMessage} />
                 </div>

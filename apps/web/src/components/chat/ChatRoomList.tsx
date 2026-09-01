@@ -35,7 +35,12 @@ export function ChatRoomList({ rooms }: { rooms: RoomSummary[] }) {
             className="flex items-center gap-3 p-4 transition-colors hover:bg-surface-2"
           >
             <PlotAvatar
-              plot={{ emoji: room.emoji, gradient: room.gradient }}
+              plot={{
+                name: room.plotName,
+                emoji: room.emoji,
+                gradient: room.gradient,
+                coverUrl: room.coverUrl,
+              }}
               size={44}
             />
             <div className="min-w-0 flex-1">

@@ -11,7 +11,7 @@
 | [T5](./T5-notices.md) | 공지 연동 — 오피스↔웹 | `feature-notices-db` | T2 | **완료** |
 | [T6](./T6-office.md) | 오피스 실데이터화 | `feature-office-db` | T4, T2 | 대기 |
 | [T7](./T7-deploy.md) | 배포 — Neon·Vercel | (설정 작업) | T1~T6 | 대기 |
-| [T8](./T8-cover-images.md) | 커버 이미지 업로드 | `feature-cover-images` | T3 | 대기 |
+| [T8](./T8-cover-images.md) | 커버 이미지 업로드 | `feature-cover-images` | T3 | **완료** |
 
 ```
 T1(db) ─→ T2(인증) ─→ T3(플롯) ─→ T4(채팅) ─→ T6(오피스) ─→ T7(배포)

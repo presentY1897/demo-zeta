@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, gte, sql } from "drizzle-orm";
 import { chatRooms, messages, plots, type Database } from "@theta/db";
 import type { ChatMessage, RoomSummary } from "@/lib/chat-types";
+import { coverImageUrl } from "@/lib/plot-view";
 
 /** /api/chat이 프롬프트를 조립할 때 필요한 방의 문맥 — 페르소나는 서버 밖으로 나가지 않는다 */
 export interface RoomContext {
@@ -74,6 +75,7 @@ export async function listRooms(db: Database, userId: string): Promise<RoomSumma
       emoji: plots.emoji,
       gradientFrom: plots.gradientFrom,
       gradientTo: plots.gradientTo,
+      coverImageId: plots.coverImageId,
       lastMessage: lastMessage.content,
       updatedAt: chatRooms.updatedAt,
     })
@@ -89,6 +91,7 @@ export async function listRooms(db: Database, userId: string): Promise<RoomSumma
     plotName: r.plotName,
     emoji: r.emoji,
     gradient: [r.gradientFrom, r.gradientTo] as [string, string],
+    coverUrl: r.coverImageId ? coverImageUrl(r.coverImageId) : null,
     lastMessage: r.lastMessage,
     updatedAt: r.updatedAt.getTime(),
   }));
