@@ -75,6 +75,9 @@ export function ChatRoom({
       return;
     }
 
+    // 중단 신호에 실을 기준점 — 응답이 붙을 자리 바로 앞 메시지
+    let afterSeq = messages[messages.length - 1]?.seq ?? -1;
+
     const optimistic = options.userMessage;
     if (optimistic !== undefined) {
       setMessages((prev) => [
@@ -91,6 +94,7 @@ export function ChatRoom({
         controller.signal,
       );
       if (optimistic !== undefined) confirmUserMessage(userSeq);
+      if (userSeq !== null) afterSeq = userSeq;
 
       for await (const chunk of chunks) {
         acc += chunk;
@@ -103,8 +107,7 @@ export function ChatRoom({
       }
     } catch (e) {
       if (controller.signal.aborted) {
-        // 중단 — 서버도 받은 데까지를 interrupted로 저장한다
-        if (acc.trim()) appendAssistant(acc, true);
+        await reportInterrupted(acc, afterSeq);
       } else {
         if (optimistic !== undefined && e instanceof ChatRequestError && e.userSeq === null) {
           // 서버가 유저 메시지를 저장하기 전에 실패 — 화면에서도 되돌린다
@@ -125,6 +128,29 @@ export function ChatRoom({
         if (last && last.role === "user") copy[copy.length - 1] = { ...last, seq };
         return copy;
       });
+    }
+
+    /**
+     * 서버리스에서는 연결을 끊어도 실행 중인 함수에 전파되지 않아 전체 응답이 저장된다.
+     * 어디까지 받았는지를 서버에 알려 화면과 DB를 맞춘다.
+     */
+    async function reportInterrupted(text: string, seq: number): Promise<void> {
+      try {
+        const res = await fetch(`/api/rooms/${roomId}/interrupt`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: text, afterSeq: seq }),
+        });
+        if (res.ok) {
+          const data = (await res.json()) as { messages: ChatMessage[] };
+          setMessages(data.messages);
+          return;
+        }
+      } catch {
+        /* 아래 폴백으로 */
+      }
+      // 신호를 못 보냈으면 화면만이라도 맞춰 둔다(새로고침하면 서버 상태로 정정된다)
+      if (text.trim()) appendAssistant(text, true);
     }
 
     function rollbackOptimistic() {

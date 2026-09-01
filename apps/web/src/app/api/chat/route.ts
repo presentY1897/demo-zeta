@@ -88,15 +88,8 @@ export async function POST(req: NextRequest): Promise<Response> {
         await touchRoom(db, room.roomId);
         return;
       }
-      const seq = await appendMessage(
-        db,
-        room.roomId,
-        { role: "assistant", content: text, interrupted },
-        { expectedSeq },
-      );
-      // 저장하는 사이 초기화·잘라내기가 끼어들었다면 사용 기록도 남기지 않는다
-      if (seq === null) return;
-
+      // 응답은 실제로 생성됐으므로 사용 기록은 저장 성공 여부와 무관하게 남긴다
+      // (중단 신호나 초기화가 메시지를 대체·삭제해도 업스트림 비용은 이미 발생했다)
       await recordUsage(db, {
         userId: user.id,
         plotId: room.plotId,
@@ -105,6 +98,14 @@ export async function POST(req: NextRequest): Promise<Response> {
         promptText,
         responseText: text,
       });
+
+      // 저장하는 사이 중단 신호·초기화·잘라내기가 끼어들었다면 자리를 비켜 준다
+      await appendMessage(
+        db,
+        room.roomId,
+        { role: "assistant", content: text, interrupted },
+        { expectedSeq },
+      );
     } catch (e) {
       console.error("[chat] 응답 저장 실패", e);
     }

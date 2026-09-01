@@ -5,6 +5,7 @@ import { createTestDb, type TestDb } from "@theta/db/testing";
 import { GET as listRooms, POST as openRoom } from "@/app/api/rooms/route";
 import { DELETE as truncateRoute } from "@/app/api/rooms/[id]/messages/route";
 import { POST as resetRoute } from "@/app/api/rooms/[id]/reset/route";
+import { POST as interruptRoute } from "@/app/api/rooms/[id]/interrupt/route";
 import { POST as chatRoute } from "@/app/api/chat/route";
 import { USER_SEQ_HEADER } from "@/lib/ai/types";
 import { issueSession, SESSION_COOKIE } from "@/server/auth/session";
@@ -257,6 +258,93 @@ describe("잘라내기와 초기화", () => {
       { params: Promise.resolve({ id: roomId }) },
     );
     expect(res.status).toBe(404);
+  });
+});
+
+describe("중단 신호", () => {
+  /**
+   * 서버리스에서는 클라이언트 연결 종료가 함수에 전파되지 않아 /api/chat이 전체 응답을 저장한다.
+   * 중단은 클라이언트가 명시적으로 알려야 하고, 원래 요청의 저장이 먼저 끝났든 나중이든
+   * 최종 상태가 같아야 한다.
+   */
+  function interrupt(actor: Actor, roomId: string, body: Record<string, unknown>) {
+    return interruptRoute(
+      jsonRequest(`${ORIGIN}/api/rooms/${roomId}/interrupt`, body, { cookies: actor.cookie }),
+      { params: Promise.resolve({ id: roomId }) },
+    );
+  }
+
+  it("전체 응답이 이미 저장돼 있어도 받은 데까지로 교체한다", async () => {
+    const roomId = await open(owner);
+    const { text } = await chat(owner, {
+      roomId,
+      provider: { kind: "mock" },
+      userMessage: "중단 실험",
+    });
+    expect((await messagesOf(roomId))[2]!.content).toBe(text);
+
+    const partial = text.slice(0, 10);
+    const res = await interrupt(owner, roomId, { content: partial, afterSeq: 1 });
+    expect(res.status).toBe(200);
+
+    const rows = await messagesOf(roomId);
+    expect(rows).toHaveLength(3);
+    expect(rows[2]!.content).toBe(partial);
+    expect(rows[2]!.interrupted).toBe(true);
+    // 응답 생성 자체는 일어났으므로 사용 기록은 남는다
+    expect(await t.db.select().from(usageEvents)).toHaveLength(1);
+  });
+
+  it("아직 아무것도 저장되지 않았어도 받은 데까지를 남긴다", async () => {
+    const roomId = await open(owner);
+    await appendMessage(t.db, roomId, { role: "user", content: "질문" });
+
+    const res = await interrupt(owner, roomId, { content: "*문을 여", afterSeq: 1 });
+    expect(res.status).toBe(200);
+
+    const rows = await messagesOf(roomId);
+    expect(rows.map((r) => r.role)).toEqual(["assistant", "user", "assistant"]);
+    expect(rows[2]!.interrupted).toBe(true);
+  });
+
+  it("첫 토큰 전에 끊겼으면(빈 내용) 응답을 만들지 않는다", async () => {
+    const roomId = await open(owner);
+    await appendMessage(t.db, roomId, { role: "user", content: "질문" });
+
+    await interrupt(owner, roomId, { content: "   ", afterSeq: 1 });
+    expect(await seqsOf(roomId)).toEqual([0, 1]);
+  });
+
+  it("중단 뒤 도착한 원래 요청의 저장은 자리를 비켜 준다 (expectedSeq 가드)", async () => {
+    const roomId = await open(owner);
+    await appendMessage(t.db, roomId, { role: "user", content: "질문" });
+    await interrupt(owner, roomId, { content: "부분 응답", afterSeq: 1 });
+
+    // 원래 요청이 뒤늦게 seq 2에 저장하려 시도하는 상황
+    const skipped = await appendMessage(
+      t.db,
+      roomId,
+      { role: "assistant", content: "전체 응답", interrupted: false },
+      { expectedSeq: 2 },
+    );
+    expect(skipped).toBeNull();
+
+    const rows = await messagesOf(roomId);
+    expect(rows).toHaveLength(3);
+    expect(rows[2]!.content).toBe("부분 응답");
+  });
+
+  it("afterSeq 검증과 권한 — 음수 400, 남의 방 404, 비로그인 401", async () => {
+    const roomId = await open(owner);
+    expect((await interrupt(owner, roomId, { content: "x", afterSeq: -1 })).status).toBe(400);
+    expect((await interrupt(owner, roomId, { content: "x", afterSeq: "abc" })).status).toBe(400);
+    expect((await interrupt(stranger, roomId, { content: "x", afterSeq: 0 })).status).toBe(404);
+
+    const anonymous = await interruptRoute(
+      jsonRequest(`${ORIGIN}/api/rooms/${roomId}/interrupt`, { content: "x", afterSeq: 0 }),
+      { params: Promise.resolve({ id: roomId }) },
+    );
+    expect(anonymous.status).toBe(401);
   });
 });
 
