@@ -1,13 +1,13 @@
-import type { PlotView } from "@/lib/plot-view";
+
 import { cn } from "@theta/ui";
 
-/** 플롯 그라디언트 + 이모지 원형 아바타 */
+/** 플롯 그라디언트 + 이모지 원형 아바타 — 커버 정보만 있으면 그린다 */
 export function PlotAvatar({
   plot,
   size = 34,
   className,
 }: {
-  plot: PlotView;
+  plot: { emoji: string; gradient: [string, string] };
   size?: number;
   className?: string;
 }) {

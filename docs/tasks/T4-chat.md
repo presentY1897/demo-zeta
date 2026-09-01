@@ -1,6 +1,6 @@
 # T4 — 채팅 영속화
 
-- 상태: 대기 · 브랜치: `feature-chat-db` · 의존: T3 · 커밋 계획: 2개 — rooms·chat API / 화면 전환
+- 상태: **완료** · 브랜치: `feature-chat-db` · 의존: T3 · 커밋 계획: 2개 — rooms·chat API / 화면 전환
 - 설계 근거: [server-design.md](../server-design.md) §4(/api/chat 개편)·§6(실사용 지표)
 - ⚠️ **최대 리스크 티켓** — 스트리밍 도중 저장·중단 경로가 핵심 난점. 밀리면 T5·T6을 09-02 오전으로 미룬다.
 
@@ -19,31 +19,31 @@
 
 ### API (커밋 1)
 
-- [ ] `GET /api/rooms` — 내 방 목록 + 마지막 메시지 + 플롯 요약(이름·이모지·그라디언트), updated_at desc
-- [ ] `POST /api/rooms {plotId}` — 방 개설: 플롯 접근 가능(공개 또는 소유) 검증, 첫 메시지를 seq 0으로 저장, plots.chats_count +1. `UNIQUE(user_id, plot_id)` 충돌 시 기존 방 반환(idempotent)
-- [ ] `DELETE /api/rooms/[id]/messages?fromSeq=n` — n≥1 검증(첫 메시지 보호), n부터 끝까지 삭제
-- [ ] `POST /api/rooms/[id]/reset` — seq 0만 남기고 삭제, updated_at 갱신
-- [ ] `/api/chat` 개편 — 요청에 `roomId` 추가. 순서: 세션 확인(suspended 403) → 방 소유 검증 → user 메시지 저장 → 업스트림 스트리밍 시작 → **TransformStream으로 통과분 버퍼 누적** → 종료 시 assistant 메시지 저장 + usage_events 1행 + updated_at → 빈 응답이면 user 메시지 롤백 없이 assistant 미저장(기존 "빈 응답" 에러 UX 유지)
-- [ ] 중단 경로 — 클라이언트 abort(`req.signal`)·업스트림 cancel 모두에서 **부분 버퍼를 `interrupted=true`로 저장**. 응답 스트림 종료 후 저장이 실행되도록 Next 15 `after()`(또는 cancel/flush 콜백)로 보장
-- [ ] usage_events — provider_kind·model(설정값, mock이면 'mock')·est_input_tokens(시스템+메시지 글자수 기반)·est_output_tokens(응답 글자수 기반). 추정 계수는 상수로 분리
+- [x] `GET /api/rooms` — 내 방 목록 + 마지막 메시지 + 플롯 요약(이름·이모지·그라디언트), updated_at desc
+- [x] `POST /api/rooms {plotId}` — 방 개설: 플롯 접근 가능(공개 또는 소유) 검증, 첫 메시지를 seq 0으로 저장, plots.chats_count +1. `UNIQUE(user_id, plot_id)` 충돌 시 기존 방 반환(idempotent)
+- [x] `DELETE /api/rooms/[id]/messages?fromSeq=n` — n≥1 검증(첫 메시지 보호), n부터 끝까지 삭제
+- [x] `POST /api/rooms/[id]/reset` — seq 0만 남기고 삭제, updated_at 갱신
+- [x] `/api/chat` 개편 — 요청에 `roomId` 추가. 순서: 세션 확인(suspended 403) → 방 소유 검증 → user 메시지 저장 → 업스트림 스트리밍 시작 → **TransformStream으로 통과분 버퍼 누적** → 종료 시 assistant 메시지 저장 + usage_events 1행 + updated_at → 빈 응답이면 user 메시지 롤백 없이 assistant 미저장(기존 "빈 응답" 에러 UX 유지)
+- [x] 중단 경로 — 클라이언트 abort(`req.signal`)·업스트림 cancel 모두에서 **부분 버퍼를 `interrupted=true`로 저장**. 응답 스트림 종료 후 저장이 실행되도록 Next 15 `after()`(또는 cancel/flush 콜백)로 보장
+- [x] usage_events — provider_kind·model(설정값, mock이면 'mock')·est_input_tokens(시스템+메시지 글자수 기반)·est_output_tokens(응답 글자수 기반). 추정 계수는 상수로 분리
 
 ### 화면 전환 (커밋 2)
 
-- [ ] ChatRoomLoader — 진입 시 방 조회/개설(POST /api/rooms), 메시지 초기 로드
-- [ ] ChatRoom — 전송 시 roomId 포함, 재생성=DELETE fromSeq(마지막 assistant)+재요청, 수정/다시 보내기=DELETE fromSeq(해당 user 메시지)+재전송, 초기화=reset API. 옵티미스틱 렌더 유지(전송 직후 화면 먼저, 실패 시 롤백)
-- [ ] 대화 목록 — `GET /api/rooms` 기반, 미리보기·상대 시간 로직 재사용
-- [ ] `theta-chats` 스토어를 서버 데이터 캐시로 축소(persist 제거 또는 캐시 전용), 사라진 액션 정리
+- [x] ChatRoomLoader — 진입 시 방 조회/개설(POST /api/rooms), 메시지 초기 로드
+- [x] ChatRoom — 전송 시 roomId 포함, 재생성=DELETE fromSeq(마지막 assistant)+재요청, 수정/다시 보내기=DELETE fromSeq(해당 user 메시지)+재전송, 초기화=reset API. 옵티미스틱 렌더 유지(전송 직후 화면 먼저, 실패 시 롤백)
+- [x] 대화 목록 — `GET /api/rooms` 기반, 미리보기·상대 시간 로직 재사용
+- [x] `theta-chats` 스토어를 서버 데이터 캐시로 축소(persist 제거 또는 캐시 전용), 사라진 액션 정리
 
 ## 테스트
 
-- [ ] 유닛 — `sseToTextStream`(청크 경계에서 잘린 JSON·`[DONE]`·불완전 라인 스킵 — 기존 계획 이관) / 토큰 추정 함수(입력·출력, 계수 상수) / roleplay 지문 파싱(미닫힘 별표)
-- [ ] 통합(docker DB) —
+- [x] 유닛 — `sseToTextStream`(청크 경계에서 잘린 JSON·`[DONE]`·불완전 라인 스킵 — 기존 계획 이관) / 토큰 추정 함수(입력·출력, 계수 상수) / roleplay 지문 파싱(미닫힘 별표)
+- [x] 통합(docker DB) —
   rooms: 개설 시 첫 메시지 seq 0 저장·chats_count +1·재호출 idempotent(기존 방 반환) /
   fromSeq: 0 거부, 중간 절단 후 남은 seq 검증 / reset: seq 0만 잔존 /
   **/api/chat mock 경로 전체**: user·assistant 메시지 저장, usage_events +1(추정 토큰 값 포함), updated_at 갱신, 빈 응답 시 assistant 미저장 /
   **중단**: 스트리밍 도중 abort → 부분 내용이 `interrupted=true`로 저장 /
   권한: 비로그인 401, 타인 방 403, suspended 403
-- [ ] E2E 시나리오 추가 — 채팅 전송 → 스트리밍 렌더 → 새로고침 후 대화 유지 → 중단 시 부분 보존 표시 → 재생성·수정 동작
+- [x] E2E 시나리오 추가 — 채팅 전송 → 스트리밍 렌더 → 새로고침 후 대화 유지 → 중단 시 부분 보존 표시 → 재생성·수정 동작
 
 ## 구현 노트
 
@@ -65,3 +65,39 @@
 - `pnpm test`(중단 저장 포함) + `pnpm e2e` — 완료 기준에 포함. 중단 통합 테스트는 mock 스트림의 타이핑 지연 도중 AbortController로 재현
 - 수동: BYOK 실 프로바이더(또는 Ollama) 1회 — 실연동은 자동화 불가 구간
 - `pnpm typecheck && pnpm build`
+
+## 구현 결과 (2026-09-01)
+
+커밋 2개(영속화 API / 화면 전환). `pnpm test` 128개 + `pnpm e2e` 5개 통과,
+`pnpm typecheck`·`pnpm build` 통과. 최대 리스크였던 "스트리밍 도중 저장·중단"은
+통합 테스트(스트림 취소 → interrupted 저장)와 E2E(중단 → 새로고침에도 표시 유지)로 이중 확인했다.
+
+설계 대비 조정한 점:
+
+- **요청 본문에서 `messages`·`system`을 걷어냈다.** 설계에는 "roomId 추가"만 있었지만, 서버가
+  이미 방을 갖게 된 이상 대화 내용을 클라이언트가 되돌려 보낼 이유가 없다. 클라이언트는 `roomId`와
+  이번 발화(`userMessage`)만 보내고 서버가 히스토리를 읽어 프롬프트를 조립한다.
+  **부수 효과가 더 크다 — 비공개 페르소나가 클라이언트 번들·HTML에서 완전히 사라졌다**(T3의 남은 노출점).
+- **유저 메시지의 seq를 응답 헤더(`x-theta-user-seq`)로 돌려준다.** 서버가 스트리밍 전에 유저
+  메시지를 저장하므로, 업스트림 실패(502) 시 "화면에서 지워야 하는가"가 애매해진다. 헤더 유무로
+  저장 여부가 확정돼 옵티미스틱 렌더를 정확히 되돌리거나 확정할 수 있다.
+- **`expectedSeq` 가드를 추가했다.** 저장이 응답 스트림보다 늦게 끝나는 구조라, 그 사이 초기화·
+  잘라내기가 들어오면 지운 대화 뒤에 응답이 되살아난다. 채번 결과가 기대한 자리와 다르면 저장을
+  건너뛴다(테스트로 고정).
+- **`after()`는 요청 스코프 밖에서 조용히 건너뛴다.** 통합 테스트가 핸들러를 직접 호출하는 방식이라
+  그대로 두면 전부 던진다. 저장 자체는 그대로 진행되고 테스트가 반영을 폴링한다.
+- **BYOK 연결 테스트를 `/api/ai/test`로 분리했다.** 기존 테스트는 `/api/chat`에 가짜 대화를 보내는
+  방식이었는데, 이제 `/api/chat`은 방·영속화가 전제라 설정 화면에서 쓸 수 없다.
+- **`theta-chats` 스토어는 축소가 아니라 삭제했다.** 방 목록은 RSC가, 방 안의 메시지는 ChatRoom의
+  로컬 상태가 들고 있어 컴포넌트 간 공유가 필요 없어졌다. 화면 캐시 역할은 그 로컬 상태가 한다.
+- **채팅방 진입은 서버 읽기 + 클라이언트 개설**로 나눴다. 페이지(RSC)가 기존 방을 읽어 넘기므로
+  이미 있는 방은 스피너 없이 바로 뜨고, 방이 없을 때만 클라이언트가 `POST /api/rooms`를 부른다
+  (렌더 중에 쓰기를 하지 않기 위한 구성).
+- **대화 목록은 로그인 필수가 됐다** — 방이 서버에 있으므로 비로그인에는 로그인 안내를 보여준다.
+
+남은 한계:
+
+- 서버가 조기 종료되면 "유저 메시지는 저장됐고 assistant만 없는" 상태가 될 수 있다. 이 상태는
+  기존 "재시도" 버튼이 자연 복구한다(설계 노트대로 별도 처리 없음).
+- **BYOK 실 프로바이더 왕복은 미검증 구간이다.** 키가 없어 확인하지 못했다. 모의 경로는
+  통합·E2E로 전부 덮었고, 실 프로바이더는 같은 코드 경로에 프로바이더 어댑터만 갈아 끼운다.

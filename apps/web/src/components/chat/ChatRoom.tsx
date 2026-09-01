@@ -2,18 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import type { PlotWithPersona } from "@/lib/plot-view";
 import { cn } from "@theta/ui";
-import { useChatStore } from "@/lib/chat-store";
-import { streamChat } from "@/lib/ai/client";
-import { buildSystemPrompt } from "@/lib/ai/prompt";
+import type { PlotView } from "@/lib/plot-view";
+import type { ChatMessage } from "@/lib/chat-types";
+import { ChatRequestError, streamChat } from "@/lib/ai/client";
 import {
   PRESETS,
   toProviderConfig,
   useAiSettingsHydrated,
   validateProviderConfig,
 } from "@/lib/ai/settings";
-import type { ChatTurn } from "@/lib/ai/types";
 import { AssistantBubble, RoleplayContent, UserBubble } from "./MessageBubble";
 import { PlotAvatar } from "./PlotAvatar";
 import { TypingDots } from "./TypingDots";
@@ -24,45 +22,45 @@ interface LiveState {
   phase: "waiting" | "streaming";
 }
 
-export function ChatRoom({ plot }: { plot: PlotWithPersona }) {
+/**
+ * 대화 화면. 메시지는 서버가 진실이고 이 컴포넌트는 화면 캐시 + 옵티미스틱 렌더를 맡는다.
+ * 시스템 프롬프트 조립과 저장은 전부 /api/chat 안에서 일어난다.
+ */
+export function ChatRoom({
+  plot,
+  roomId,
+  initialMessages,
+}: {
+  plot: PlotView;
+  roomId: string;
+  initialMessages: ChatMessage[];
+}) {
   const settings = useAiSettingsHydrated();
-  const room = useChatStore((s) => s.rooms[plot.id]);
-  const {
-    ensureRoom,
-    appendMessage,
-    removeLastAssistant,
-    truncateFrom,
-    resetRoom,
-  } = useChatStore();
-
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [live, setLive] = useState<LiveState | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [editing, setEditing] = useState<{ id: string; text: string } | null>(
-    null,
-  );
+  const [editing, setEditing] = useState<{ seq: number; text: string } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
 
-  useEffect(() => {
-    if (settings.hydrated && !room) ensureRoom(plot.id, plot.firstMessage);
-  }, [settings.hydrated, room, ensureRoom, plot.id, plot.firstMessage]);
-
   // 새 메시지/스트리밍 진행 시, 사용자가 하단 근처에 있을 때만 자동 스크롤
-  const messageCount = room?.messages.length ?? 0;
   const liveText = live?.text ?? "";
   useEffect(() => {
     const el = scrollRef.current;
     if (el && stickToBottomRef.current) el.scrollTop = el.scrollHeight;
-  }, [messageCount, liveText, error]);
+  }, [messages.length, liveText, error]);
 
   // 언마운트 시 진행 중인 스트림 정리
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  const toTurns = (): ChatTurn[] =>
-    (room?.messages ?? []).map((m) => ({ role: m.role, content: m.content }));
+  const nextSeq = (list: ChatMessage[]): number => (list[list.length - 1]?.seq ?? -1) + 1;
 
-  async function run(turns: ChatTurn[]) {
+  /**
+   * 요청 한 번. `userMessage`가 있으면 서버가 먼저 저장하고 seq를 헤더로 알려주며,
+   * 저장되지 않았다면 옵티미스틱하게 그린 메시지를 되돌린다.
+   */
+  async function run(options: { userMessage?: string } = {}): Promise<void> {
     setError(null);
     const controller = new AbortController();
     abortRef.current = controller;
@@ -77,64 +75,100 @@ export function ChatRoom({ plot }: { plot: PlotWithPersona }) {
       return;
     }
 
+    const optimistic = options.userMessage;
+    if (optimistic !== undefined) {
+      setMessages((prev) => [
+        ...prev,
+        { seq: nextSeq(prev), role: "user", content: optimistic, interrupted: false },
+      ]);
+    }
+
     setLive({ text: "", phase: "waiting" });
     let acc = "";
     try {
-      const req = {
-        provider,
-        system: buildSystemPrompt(plot),
-        plotName: plot.name,
-        messages: turns,
-      };
-      for await (const chunk of streamChat(req, controller.signal)) {
+      const { userSeq, chunks } = await streamChat(
+        { roomId, provider, userMessage: options.userMessage },
+        controller.signal,
+      );
+      if (optimistic !== undefined) confirmUserMessage(userSeq);
+
+      for await (const chunk of chunks) {
         acc += chunk;
         setLive({ text: acc, phase: "streaming" });
       }
       if (acc.trim()) {
-        appendMessage(plot.id, { role: "assistant", content: acc });
+        appendAssistant(acc, false);
       } else {
         setError("빈 응답을 받았어요. 다시 시도해 주세요.");
       }
     } catch (e) {
       if (controller.signal.aborted) {
-        if (acc.trim()) {
-          appendMessage(plot.id, {
-            role: "assistant",
-            content: acc,
-            interrupted: true,
-          });
-        }
+        // 중단 — 서버도 받은 데까지를 interrupted로 저장한다
+        if (acc.trim()) appendAssistant(acc, true);
       } else {
+        if (optimistic !== undefined && e instanceof ChatRequestError && e.userSeq === null) {
+          // 서버가 유저 메시지를 저장하기 전에 실패 — 화면에서도 되돌린다
+          rollbackOptimistic();
+        }
         setError(e instanceof Error ? e.message : "응답 생성에 실패했어요.");
       }
     } finally {
       setLive(null);
       abortRef.current = null;
     }
+
+    function confirmUserMessage(seq: number | null) {
+      if (seq === null) return;
+      setMessages((prev) => {
+        const copy = [...prev];
+        const last = copy[copy.length - 1];
+        if (last && last.role === "user") copy[copy.length - 1] = { ...last, seq };
+        return copy;
+      });
+    }
+
+    function rollbackOptimistic() {
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        return last?.role === "user" ? prev.slice(0, -1) : prev;
+      });
+    }
+  }
+
+  function appendAssistant(content: string, interrupted: boolean) {
+    setMessages((prev) => [
+      ...prev,
+      { seq: nextSeq(prev), role: "assistant", content, interrupted },
+    ]);
   }
 
   const busy = live !== null;
 
   function send(text: string) {
-    if (busy || !room) return;
-    appendMessage(plot.id, { role: "user", content: text });
-    void run([...toTurns(), { role: "user", content: text }]);
+    if (busy) return;
+    void run({ userMessage: text });
   }
 
   function stop() {
     abortRef.current?.abort();
   }
 
-  const lastMessage = room?.messages[room.messages.length - 1];
-  const canRegenerate =
-    !busy &&
-    !!room &&
-    room.messages.length >= 2 &&
-    lastMessage?.role === "assistant";
+  /** 서버에서 seq 이후를 지우고 화면도 맞춘다 */
+  async function truncateFrom(seq: number): Promise<boolean> {
+    const res = await fetch(`/api/rooms/${roomId}/messages?fromSeq=${seq}`, { method: "DELETE" });
+    if (!res.ok) {
+      setError("이전 메시지를 정리하지 못했어요.");
+      return false;
+    }
+    setMessages((prev) => prev.filter((m) => m.seq < seq));
+    return true;
+  }
+
+  const lastMessage = messages[messages.length - 1];
+  const canRegenerate = !busy && messages.length >= 2 && lastMessage?.role === "assistant";
   const canRetry = !busy && lastMessage?.role === "user";
 
   // 수정/다시 보내기 대상: 대화 꼬리([유저] 또는 [유저, 어시스턴트])의 유저 메시지
-  const messages = room?.messages ?? [];
   let lastUserIndex = -1;
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i]?.role === "user") {
@@ -142,41 +176,41 @@ export function ChatRoom({ plot }: { plot: PlotWithPersona }) {
       break;
     }
   }
-  const actionableUserId =
+  const actionableUserSeq =
     !busy && lastUserIndex >= 0 && lastUserIndex >= messages.length - 2
-      ? messages[lastUserIndex]?.id
+      ? messages[lastUserIndex]?.seq
       : undefined;
 
   /** 해당 유저 메시지부터 뒤를 잘라내고 새 내용으로 다시 보낸다 */
-  function resendFrom(messageId: string, text: string) {
-    if (busy || !room) return;
-    const idx = room.messages.findIndex((m) => m.id === messageId);
-    if (idx <= 0) return;
-    const keptTurns: ChatTurn[] = room.messages
-      .slice(0, idx)
-      .map((m) => ({ role: m.role, content: m.content }));
-    truncateFrom(plot.id, messageId);
-    appendMessage(plot.id, { role: "user", content: text });
+  async function resendFrom(seq: number, text: string) {
+    if (busy || seq < 1) return;
     setEditing(null);
-    void run([...keptTurns, { role: "user", content: text }]);
+    if (!(await truncateFrom(seq))) return;
+    await run({ userMessage: text });
   }
 
-  function regenerate() {
-    if (!canRegenerate) return;
-    removeLastAssistant(plot.id);
-    void run(toTurns().slice(0, -1));
+  async function regenerate() {
+    if (!canRegenerate || lastMessage === undefined) return;
+    if (!(await truncateFrom(lastMessage.seq))) return;
+    await run();
   }
 
   function retry() {
     if (!canRetry) return;
-    void run(toTurns());
+    void run();
   }
 
-  function reset() {
+  async function reset() {
     if (busy) return;
-    if (window.confirm("대화를 처음부터 다시 시작할까요? 기록이 사라져요.")) {
-      resetRoom(plot.id, plot.firstMessage);
+    if (!window.confirm("대화를 처음부터 다시 시작할까요? 기록이 사라져요.")) return;
+    const res = await fetch(`/api/rooms/${roomId}/reset`, { method: "POST" });
+    if (!res.ok) {
+      setError("대화를 초기화하지 못했어요.");
+      return;
     }
+    const data = (await res.json()) as { messages: ChatMessage[] };
+    setMessages(data.messages);
+    setError(null);
   }
 
   const modelLabel = !settings.hydrated
@@ -207,7 +241,7 @@ export function ChatRoom({ plot }: { plot: PlotWithPersona }) {
         </div>
         <button
           type="button"
-          onClick={reset}
+          onClick={() => void reset()}
           aria-label="대화 초기화"
           title="대화 초기화"
           className="flex size-9 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-2"
@@ -220,16 +254,15 @@ export function ChatRoom({ plot }: { plot: PlotWithPersona }) {
         ref={scrollRef}
         onScroll={(e) => {
           const el = e.currentTarget;
-          stickToBottomRef.current =
-            el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+          stickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
         }}
         className="flex-1 space-y-4 overflow-y-auto px-4 py-4"
       >
-        {room?.messages.map((msg) => {
+        {messages.map((msg) => {
           if (msg.role === "assistant") {
             return (
               <AssistantBubble
-                key={msg.id}
+                key={msg.seq}
                 plot={plot}
                 footer={
                   msg.interrupted ? (
@@ -245,26 +278,20 @@ export function ChatRoom({ plot }: { plot: PlotWithPersona }) {
           }
 
           // 수정 모드: 버블 대신 인라인 편집 박스
-          if (editing?.id === msg.id) {
+          if (editing?.seq === msg.seq) {
             return (
-              <div key={msg.id} className="flex justify-end">
+              <div key={msg.seq} className="flex justify-end">
                 <div className="w-full max-w-[85%] rounded-2xl border border-primary/60 bg-surface p-2">
                   <textarea
                     autoFocus
                     value={editing.text}
                     rows={3}
-                    onChange={(e) =>
-                      setEditing({ id: msg.id, text: e.target.value })
-                    }
+                    onChange={(e) => setEditing({ seq: msg.seq, text: e.target.value })}
                     onKeyDown={(e) => {
-                      if (
-                        e.key === "Enter" &&
-                        !e.shiftKey &&
-                        !e.nativeEvent.isComposing
-                      ) {
+                      if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                         e.preventDefault();
                         if (editing.text.trim()) {
-                          resendFrom(msg.id, editing.text.trim());
+                          void resendFrom(msg.seq, editing.text.trim());
                         }
                       }
                       if (e.key === "Escape") setEditing(null);
@@ -282,7 +309,7 @@ export function ChatRoom({ plot }: { plot: PlotWithPersona }) {
                     <button
                       type="button"
                       disabled={!editing.text.trim()}
-                      onClick={() => resendFrom(msg.id, editing.text.trim())}
+                      onClick={() => void resendFrom(msg.seq, editing.text.trim())}
                       className="rounded-lg bg-primary px-3 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-primary-strong disabled:bg-surface-2 disabled:text-text-faint"
                     >
                       다시 보내기
@@ -293,15 +320,15 @@ export function ChatRoom({ plot }: { plot: PlotWithPersona }) {
             );
           }
 
-          const showActions = actionableUserId === msg.id && !editing;
+          const showActions = actionableUserSeq === msg.seq && !editing;
           return (
-            <div key={msg.id} className="space-y-1">
+            <div key={msg.seq} className="space-y-1">
               <UserBubble content={msg.content} />
               {showActions && (
                 <div className="flex justify-end gap-0.5 pr-1">
                   <button
                     type="button"
-                    onClick={() => setEditing({ id: msg.id, text: msg.content })}
+                    onClick={() => setEditing({ seq: msg.seq, text: msg.content })}
                     className="rounded-md px-2 py-0.5 text-[12px] text-text-faint transition-colors hover:bg-surface-2 hover:text-text-sub"
                   >
                     수정
@@ -309,7 +336,7 @@ export function ChatRoom({ plot }: { plot: PlotWithPersona }) {
                   {lastUserIndex === messages.length - 1 && (
                     <button
                       type="button"
-                      onClick={() => resendFrom(msg.id, msg.content)}
+                      onClick={() => void resendFrom(msg.seq, msg.content)}
                       className="rounded-md px-2 py-0.5 text-[12px] text-text-faint transition-colors hover:bg-surface-2 hover:text-text-sub"
                     >
                       다시 보내기
@@ -323,11 +350,7 @@ export function ChatRoom({ plot }: { plot: PlotWithPersona }) {
 
         {live && (
           <AssistantBubble plot={plot}>
-            {live.phase === "waiting" ? (
-              <TypingDots />
-            ) : (
-              <RoleplayContent text={live.text} />
-            )}
+            {live.phase === "waiting" ? <TypingDots /> : <RoleplayContent text={live.text} />}
           </AssistantBubble>
         )}
 
@@ -358,7 +381,7 @@ export function ChatRoom({ plot }: { plot: PlotWithPersona }) {
           <div className="pl-11">
             <button
               type="button"
-              onClick={regenerate}
+              onClick={() => void regenerate()}
               className={cn(
                 "rounded-lg px-2.5 py-1 text-[12px] text-text-faint transition-colors",
                 "hover:bg-surface-2 hover:text-text-sub",
@@ -370,12 +393,7 @@ export function ChatRoom({ plot }: { plot: PlotWithPersona }) {
         )}
       </div>
 
-      <Composer
-        busy={busy}
-        disabled={editing !== null}
-        onSend={send}
-        onStop={stop}
-      />
+      <Composer busy={busy} disabled={editing !== null} onSend={send} onStop={stop} />
     </div>
   );
 }

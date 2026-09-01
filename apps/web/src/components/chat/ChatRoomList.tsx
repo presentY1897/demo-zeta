@@ -1,9 +1,5 @@
-"use client";
-
 import Link from "next/link";
-import { Spinner } from "@theta/ui";
-import { useChatRooms } from "@/lib/chat-store";
-import type { PlotView } from "@/lib/plot-view";
+import type { RoomSummary } from "@/lib/chat-types";
 import { formatRelativeTime } from "@/lib/time";
 import { PlotAvatar } from "./PlotAvatar";
 
@@ -12,25 +8,8 @@ function preview(content: string): string {
   return content.replace(/\*/g, "").replace(/\s+/g, " ").trim().slice(0, 48);
 }
 
-export function ChatRoomList({ plots }: { plots: PlotView[] }) {
-  const rooms = useChatRooms();
-
-  if (rooms === null) {
-    return (
-      <div className="flex justify-center py-24">
-        <Spinner />
-      </div>
-    );
-  }
-
-  const byId = new Map(plots.map((p) => [p.id, p]));
-  // 삭제됐거나 더 이상 볼 수 없는 플롯의 방은 목록에서 제외한다
-  const entries = Object.values(rooms)
-    .map((room) => ({ room, plot: byId.get(room.plotId) }))
-    .filter((e): e is { room: (typeof e)["room"]; plot: PlotView } => e.plot !== undefined)
-    .sort((a, b) => b.room.updatedAt - a.room.updatedAt);
-
-  if (entries.length === 0) {
+export function ChatRoomList({ rooms }: { rooms: RoomSummary[] }) {
+  if (rooms.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 rounded-card border border-line bg-surface py-16 text-center">
         <span className="text-4xl" aria-hidden>
@@ -49,28 +28,28 @@ export function ChatRoomList({ plots }: { plots: PlotView[] }) {
 
   return (
     <ul className="divide-y divide-line rounded-card border border-line bg-surface">
-      {entries.map(({ room, plot }) => {
-        const last = room.messages[room.messages.length - 1];
-        return (
-          <li key={room.plotId}>
-            <Link
-              href={`/chat/${room.plotId}`}
-              className="flex items-center gap-3 p-4 transition-colors hover:bg-surface-2"
-            >
-              <PlotAvatar plot={plot} size={44} />
-              <div className="min-w-0 flex-1">
-                <p className="text-[15px] font-bold">{plot.name}</p>
-                <p className="truncate text-[13px] text-text-sub">
-                  {last ? preview(last.content) : ""}
-                </p>
-              </div>
-              <span className="shrink-0 text-[11px] text-text-faint">
-                {formatRelativeTime(room.updatedAt)}
-              </span>
-            </Link>
-          </li>
-        );
-      })}
+      {rooms.map((room) => (
+        <li key={room.id}>
+          <Link
+            href={`/chat/${room.plotId}`}
+            className="flex items-center gap-3 p-4 transition-colors hover:bg-surface-2"
+          >
+            <PlotAvatar
+              plot={{ emoji: room.emoji, gradient: room.gradient }}
+              size={44}
+            />
+            <div className="min-w-0 flex-1">
+              <p className="text-[15px] font-bold">{room.plotName}</p>
+              <p className="truncate text-[13px] text-text-sub">
+                {room.lastMessage ? preview(room.lastMessage) : ""}
+              </p>
+            </div>
+            <span className="shrink-0 text-[11px] text-text-faint">
+              {formatRelativeTime(room.updatedAt)}
+            </span>
+          </Link>
+        </li>
+      ))}
     </ul>
   );
 }

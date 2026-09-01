@@ -9,7 +9,7 @@ import {
   useAiSettingsHydrated,
   type ProviderPreset,
 } from "@/lib/ai/settings";
-import { streamChat } from "@/lib/ai/client";
+import { streamConnectionTest } from "@/lib/ai/client";
 
 type TestState =
   | { phase: "idle" }
@@ -32,13 +32,10 @@ export default function AiSettingsPage() {
     setTest({ phase: "running" });
     let sample = "";
     try {
-      const req = {
-        provider: toProviderConfig(s),
-        system: "당신은 연결 테스트 응답기입니다. 한 문장으로 짧게 인사하세요.",
-        plotName: "세타",
-        messages: [{ role: "user" as const, content: "안녕하세요!" }],
-      };
-      for await (const chunk of streamChat(req, controller.signal)) {
+      for await (const chunk of streamConnectionTest(
+        toProviderConfig(s),
+        controller.signal,
+      )) {
         sample += chunk;
         if (sample.length > 40) break;
       }
