@@ -1,0 +1,102 @@
+import { randomUUID } from "node:crypto";
+import { and, eq } from "drizzle-orm";
+import { plots, type Database } from "@theta/db";
+import { LIMITS, MAX_TAGS } from "@/lib/plot-limits";
+
+export interface CreatePlotInput {
+  name: string;
+  tagline: string;
+  description: string;
+  persona: string;
+  firstMessage: string;
+  tags: string[];
+  emoji: string;
+  gradient: [string, string];
+  visibility: "public" | "private";
+}
+
+export type CreateResult =
+  | { ok: true; id: string }
+  | { ok: false; status: number; message: string };
+
+const HEX_COLOR = /^#[0-9a-fA-F]{3,8}$/;
+
+/** 위저드가 보내는 값이라도 서버에서 다시 검증한다 — 클라이언트 검증은 UX용일 뿐 */
+export function validateCreateInput(input: Partial<CreatePlotInput>): string | null {
+  const text = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+
+  const checks: [string, string, number][] = [
+    ["캐릭터 이름", text(input.name), LIMITS.name],
+    ["한 줄 소개", text(input.tagline), LIMITS.tagline],
+    ["세계관 소개", text(input.description), LIMITS.description],
+    ["성격·말투 설정", text(input.persona), LIMITS.persona],
+    ["첫 메시지", text(input.firstMessage), LIMITS.firstMessage],
+  ];
+  for (const [label, value, max] of checks) {
+    if (!value) return `${label}을(를) 입력해 주세요.`;
+    if (value.length > max) return `${label}은(는) ${max}자까지 쓸 수 있어요.`;
+  }
+
+  if (!Array.isArray(input.tags) || input.tags.length === 0) return "태그를 1개 이상 선택해 주세요.";
+  if (input.tags.length > MAX_TAGS) return `태그는 최대 ${MAX_TAGS}개까지예요.`;
+  for (const tag of input.tags) {
+    if (typeof tag !== "string" || !tag.trim()) return "빈 태그는 넣을 수 없어요.";
+    if (tag.length > LIMITS.tag) return `태그는 ${LIMITS.tag}자까지예요.`;
+  }
+
+  if (typeof input.emoji !== "string" || input.emoji.length === 0 || input.emoji.length > 8)
+    return "커버 이모지를 선택해 주세요.";
+
+  const gradient = input.gradient;
+  if (
+    !Array.isArray(gradient) ||
+    gradient.length !== 2 ||
+    !gradient.every((c) => typeof c === "string" && HEX_COLOR.test(c))
+  )
+    return "커버 색상을 선택해 주세요.";
+
+  if (input.visibility !== "public" && input.visibility !== "private")
+    return "공개 설정을 선택해 주세요.";
+
+  return null;
+}
+
+export async function createPlot(
+  db: Database,
+  ownerId: string,
+  input: CreatePlotInput,
+): Promise<CreateResult> {
+  const error = validateCreateInput(input);
+  if (error) return { ok: false, status: 400, message: error };
+
+  // u- 로컬 id 체계는 폐기 — 서버가 uuid를 발급한다
+  const id = randomUUID();
+  await db.insert(plots).values({
+    id,
+    ownerId,
+    name: input.name.trim(),
+    tagline: input.tagline.trim(),
+    description: input.description.trim(),
+    persona: input.persona.trim(),
+    firstMessage: input.firstMessage.trim(),
+    tags: input.tags.map((t) => t.trim()),
+    emoji: input.emoji,
+    gradientFrom: input.gradient[0],
+    gradientTo: input.gradient[1],
+    visibility: input.visibility,
+  });
+  return { ok: true, id };
+}
+
+/** 소유자만 삭제할 수 있다. 대화방·메시지는 FK cascade로 함께 정리된다 */
+export async function deleteOwnedPlot(
+  db: Database,
+  id: string,
+  ownerId: string,
+): Promise<boolean> {
+  const deleted = await db
+    .delete(plots)
+    .where(and(eq(plots.id, id), eq(plots.ownerId, ownerId)))
+    .returning({ id: plots.id });
+  return deleted.length > 0;
+}
