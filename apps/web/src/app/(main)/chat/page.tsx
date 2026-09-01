@@ -1,77 +1,19 @@
-"use client";
+import { db } from "@theta/db";
+import { ChatRoomList } from "@/components/chat/ChatRoomList";
+import { getCurrentUser } from "@/server/auth/current-user";
+import { listPlots } from "@/server/plots/queries";
 
-import Link from "next/link";
-import { Spinner } from "@theta/ui";
-import { useChatRooms } from "@/lib/chat-store";
-import { useAllPlots } from "@/lib/plots";
-import { formatRelativeTime } from "@/lib/time";
-import { PlotAvatar } from "@/components/chat/PlotAvatar";
+export const dynamic = "force-dynamic";
 
-/** 마지막 메시지 미리보기 — 지문 별표와 줄바꿈 제거 */
-function preview(content: string): string {
-  return content.replace(/\*/g, "").replace(/\s+/g, " ").trim().slice(0, 48);
-}
-
-export default function ChatListPage() {
-  const rooms = useChatRooms();
-  const { hydrated, all } = useAllPlots();
-
-  if (rooms === null || !hydrated) {
-    return (
-      <div className="flex justify-center py-24">
-        <Spinner />
-      </div>
-    );
-  }
-
-  const entries = Object.values(rooms)
-    .map((room) => ({ room, plot: all.find((p) => p.id === room.plotId) }))
-    .filter((e) => e.plot !== undefined)
-    .sort((a, b) => b.room.updatedAt - a.room.updatedAt);
+export default async function ChatListPage() {
+  const user = await getCurrentUser();
+  // 방 목록은 아직 브라우저(chat-store)에 있고, 플롯 정보만 서버에서 해석한다 — T4에서 전부 서버로
+  const plots = await listPlots(db, { viewerId: user?.id ?? null });
 
   return (
     <div className="mx-auto max-w-lg">
       <h1 className="mb-4 text-lg font-extrabold">대화</h1>
-
-      {entries.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-card border border-line bg-surface py-16 text-center">
-          <span className="text-4xl" aria-hidden>
-            💬
-          </span>
-          <p className="text-sm text-text-sub">아직 시작한 대화가 없어요.</p>
-          <Link
-            href="/"
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-strong"
-          >
-            마음에 드는 캐릭터 찾아보기
-          </Link>
-        </div>
-      ) : (
-        <ul className="divide-y divide-line rounded-card border border-line bg-surface">
-          {entries.map(({ room, plot }) => {
-            const last = room.messages[room.messages.length - 1];
-            return (
-              <li key={room.plotId}>
-                <Link
-                  href={`/chat/${room.plotId}`}
-                  className="flex items-center gap-3 p-4 transition-colors hover:bg-surface-2"
-                >
-                  <PlotAvatar plot={plot!} size={44} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[15px] font-bold">{plot!.name}</p>
-                    <p className="truncate text-[13px] text-text-sub">
-                      {last ? preview(last.content) : ""}
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-[11px] text-text-faint">
-                    {formatRelativeTime(room.updatedAt)}
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      <ChatRoomList plots={plots} />
     </div>
   );
 }

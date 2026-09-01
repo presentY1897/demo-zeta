@@ -1,9 +1,9 @@
 import Link from "next/link";
-import type { Plot } from "@theta/mocks";
+import type { PlotView } from "@/lib/plot-view";
 import { formatCount } from "@/lib/format";
 import { PlotCover } from "./PlotCover";
 
-export function PlotCard({ plot, mine }: { plot: Plot; mine?: boolean }) {
+export function PlotCard({ plot, mine }: { plot: PlotView; mine?: boolean }) {
   return (
     <Link
       href={`/plots/${plot.id}`}
@@ -17,6 +17,11 @@ export function PlotCard({ plot, mine }: { plot: Plot; mine?: boolean }) {
         {mine && (
           <span className="absolute left-2 top-2 rounded-md bg-primary px-1.5 py-0.5 text-[10px] font-bold text-white">
             MY
+          </span>
+        )}
+        {plot.visibility === "private" && (
+          <span className="absolute right-2 top-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white">
+            비공개
           </span>
         )}
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 pb-2 pt-8">

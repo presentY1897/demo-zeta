@@ -3,10 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { isoDate, TODAY, type Plot } from "@theta/mocks";
 import { Button, Chip, cn } from "@theta/ui";
 import type { PublicUser } from "@/server/auth/http";
-import { newUserPlotId, useUserPlotsStore } from "@/lib/user-plots";
+import type { PlotView } from "@/lib/plot-view";
 import { RoleplayContent } from "@/components/chat/MessageBubble";
 import { PlotCard } from "@/components/PlotCard";
 import {
@@ -25,13 +24,13 @@ const STEP_LABELS = ["프로필", "페르소나", "첫 메시지", "공개 설�
 
 /** 로그인 유저는 서버 세션에서 온다(페이지가 RSC에서 주입) */
 export function CreateWizard({ user }: { user: PublicUser | null }) {
-  const addPlot = useUserPlotsStore((s) => s.addPlot);
   const router = useRouter();
 
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<PlotDraft>(emptyDraft);
   const [error, setError] = useState<string | null>(null);
   const [customTag, setCustomTag] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   if (!user) {
     return (
@@ -77,7 +76,7 @@ export function CreateWizard({ user }: { user: PublicUser | null }) {
     toggleTag(tag);
   };
 
-  const goNext = () => {
+  const goNext = async () => {
     const message = validateStep(draft, step);
     if (message) {
       setError(message);
@@ -87,32 +86,43 @@ export function CreateWizard({ user }: { user: PublicUser | null }) {
       setStep(step + 1);
       return;
     }
-    // 마지막 스텝: 플롯 생성
-    const plot: Plot = {
-      id: newUserPlotId(),
-      name: draft.name.trim(),
-      tagline: draft.tagline.trim(),
-      description: draft.description.trim(),
-      persona: draft.persona.trim(),
-      tags: draft.tags,
-      firstMessage: draft.firstMessage.trim(),
-      creator: user.nickname,
-      emoji: draft.emoji,
-      gradient: draft.gradient,
-      chats: 0,
-      likes: 0,
-      createdAt: isoDate(TODAY),
-    };
-    addPlot(plot);
-    router.push(`/plots/${plot.id}`);
+    // 마지막 스텝: 서버에 플롯 생성
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/plots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: draft.name.trim(),
+          tagline: draft.tagline.trim(),
+          description: draft.description.trim(),
+          persona: draft.persona.trim(),
+          firstMessage: draft.firstMessage.trim(),
+          tags: draft.tags,
+          emoji: draft.emoji,
+          gradient: draft.gradient,
+          visibility: draft.visibility,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { id?: string; error?: string };
+      if (!res.ok || !data.id) {
+        setError(data.error ?? "플롯을 만들지 못했어요. 잠시 후 다시 시도해 주세요.");
+        return;
+      }
+      router.push(`/plots/${data.id}`);
+      router.refresh();
+    } catch {
+      setError("네트워크 오류예요. 연결을 확인해 주세요.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const previewPlot: Plot = {
+  const previewPlot: PlotView = {
     id: "preview",
     name: draft.name.trim() || "이름 없는 캐릭터",
     tagline: draft.tagline.trim() || "한 줄 소개가 여기 보여요",
     description: draft.description,
-    persona: draft.persona,
     tags: draft.tags.length > 0 ? draft.tags : ["태그"],
     firstMessage: draft.firstMessage,
     creator: user.nickname,
@@ -120,7 +130,9 @@ export function CreateWizard({ user }: { user: PublicUser | null }) {
     gradient: draft.gradient,
     chats: 0,
     likes: 0,
-    createdAt: isoDate(TODAY),
+    visibility: draft.visibility,
+    mine: true,
+    createdAt: "",
   };
 
   return (
@@ -337,7 +349,7 @@ export function CreateWizard({ user }: { user: PublicUser | null }) {
               ))}
             </div>
             <p className="text-[12px] text-text-faint">
-              데모에서는 어떤 설정이든 이 브라우저에만 저장돼요.
+              공개로 만들면 다른 유저의 홈 피드에도 보여요. 비공개는 나에게만 보입니다.
             </p>
           </div>
 
@@ -362,8 +374,12 @@ export function CreateWizard({ user }: { user: PublicUser | null }) {
             이전
           </Button>
         )}
-        <Button size="lg" full onClick={goNext}>
-          {step < STEP_LABELS.length - 1 ? "다음" : "플롯 만들기"}
+        <Button size="lg" full disabled={submitting} onClick={() => void goNext()}>
+          {step < STEP_LABELS.length - 1
+            ? "다음"
+            : submitting
+              ? "만드는 중…"
+              : "플롯 만들기"}
         </Button>
       </div>
     </div>

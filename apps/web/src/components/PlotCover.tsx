@@ -1,5 +1,5 @@
 import { cn } from "@theta/ui";
-import type { Plot } from "@theta/mocks";
+import type { PlotView } from "@/lib/plot-view";
 
 /** 외부 이미지 없이 그라디언트+이모지로 표현하는 플롯 커버 */
 export function PlotCover({
@@ -7,7 +7,7 @@ export function PlotCover({
   className,
   emojiClassName,
 }: {
-  plot: Plot;
+  plot: PlotView;
   className?: string;
   emojiClassName?: string;
 }) {

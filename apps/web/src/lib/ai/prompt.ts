@@ -1,7 +1,7 @@
-import type { Plot } from "@theta/mocks";
+import type { PlotWithPersona } from "@/lib/plot-view";
 
 /** 플롯 정보로 롤플레잉 시스템 프롬프트를 구성한다 */
-export function buildSystemPrompt(plot: Plot): string {
+export function buildSystemPrompt(plot: PlotWithPersona): string {
   return [
     `너는 인터랙티브 스토리의 캐릭터 "${plot.name}"이다. 아래 설정을 완전히 연기한다.`,
     "",

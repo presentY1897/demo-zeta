@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-/** 존재하지 않거나 이 브라우저에 없는 플롯 안내 */
+/** 삭제됐거나 볼 권한이 없는 플롯 안내 */
 export function PlotNotFound() {
   return (
     <div className="mx-auto flex max-w-lg flex-col items-center gap-3 py-24 text-center">
@@ -10,7 +10,7 @@ export function PlotNotFound() {
       <p className="text-sm text-text-sub">
         플롯을 찾을 수 없어요.
         <br />
-        삭제됐거나 다른 브라우저에서 만든 플롯일 수 있어요.
+        삭제됐거나 비공개 플롯이에요.
       </p>
       <Link
         href="/"

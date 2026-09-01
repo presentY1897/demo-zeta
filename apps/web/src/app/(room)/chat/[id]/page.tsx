@@ -1,18 +1,21 @@
-import { getPlot, plots } from "@theta/mocks";
-import { ChatRoomLoader } from "@/components/chat/ChatRoomLoader";
+import type { Metadata } from "next";
+import { db } from "@theta/db";
+import { PlotNotFound } from "@/components/PlotNotFound";
+import { ChatRoom } from "@/components/chat/ChatRoom";
+import { getCurrentUser } from "@/server/auth/current-user";
+import { getPlotForViewer } from "@/server/plots/queries";
 
-/** 정적 플롯은 프리렌더, 유저 생성 플롯(u-*)은 클라이언트에서 해석 */
-export function generateStaticParams() {
-  return plots.map((p) => ({ id: p.id }));
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ id: string }>;
-}) {
+}): Promise<Metadata> {
   const { id } = await params;
-  return { title: getPlot(id)?.name ?? "대화" };
+  const user = await getCurrentUser();
+  const plot = await getPlotForViewer(db, id, user?.id ?? null);
+  return { title: plot?.name ?? "대화" };
 }
 
 export default async function ChatRoomPage({
@@ -20,6 +23,10 @@ export default async function ChatRoomPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  return <ChatRoomLoader id={id} />;
+  const [{ id }, user] = await Promise.all([params, getCurrentUser()]);
+  const plot = await getPlotForViewer(db, id, user?.id ?? null);
+  if (!plot) return <PlotNotFound />;
+
+  // 메시지 저장은 아직 브라우저(chat-store) — T4에서 서버로 옮긴다
+  return <ChatRoom plot={plot} />;
 }

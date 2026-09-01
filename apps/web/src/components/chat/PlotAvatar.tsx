@@ -1,4 +1,4 @@
-import type { Plot } from "@theta/mocks";
+import type { PlotView } from "@/lib/plot-view";
 import { cn } from "@theta/ui";
 
 /** 플롯 그라디언트 + 이모지 원형 아바타 */
@@ -7,7 +7,7 @@ export function PlotAvatar({
   size = 34,
   className,
 }: {
-  plot: Plot;
+  plot: PlotView;
   size?: number;
   className?: string;
 }) {

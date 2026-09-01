@@ -6,7 +6,7 @@
 | --- | --- | --- | --- | --- |
 | [T1](./T1-db.md) | packages/db — 스키마·시드·로컬 DB | `feature-db` | — | **완료** |
 | [T2](./T2-auth.md) | 인증 — 가입·세션·admin 가드 | `feature-auth` | T1 | **완료** |
-| [T3](./T3-plots.md) | 플롯 서버화 — 공개 피드 | `feature-plots-db` | T2 | 대기 |
+| [T3](./T3-plots.md) | 플롯 서버화 — 공개 피드 | `feature-plots-db` | T2 | **완료** |
 | [T4](./T4-chat.md) | 채팅 영속화 | `feature-chat-db` | T3 | 대기 |
 | [T5](./T5-notices.md) | 공지 연동 — 오피스↔웹 | `feature-notices-db` | T2 | 대기 |
 | [T6](./T6-office.md) | 오피스 실데이터화 | `feature-office-db` | T4, T2 | 대기 |

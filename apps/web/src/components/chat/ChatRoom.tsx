@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import type { Plot } from "@theta/mocks";
+import type { PlotWithPersona } from "@/lib/plot-view";
 import { cn } from "@theta/ui";
 import { useChatStore } from "@/lib/chat-store";
 import { streamChat } from "@/lib/ai/client";
@@ -24,7 +24,7 @@ interface LiveState {
   phase: "waiting" | "streaming";
 }
 
-export function ChatRoom({ plot }: { plot: Plot }) {
+export function ChatRoom({ plot }: { plot: PlotWithPersona }) {
   const settings = useAiSettingsHydrated();
   const room = useChatStore((s) => s.rooms[plot.id]);
   const {

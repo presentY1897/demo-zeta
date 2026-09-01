@@ -1,27 +1,12 @@
-"use client";
-
 import Link from "next/link";
-import { Spinner } from "@theta/ui";
 import { PlotCover } from "@/components/PlotCover";
-import { PlotNotFound } from "@/components/PlotNotFound";
 import { formatCount } from "@/lib/format";
 import { josa } from "@/lib/josa";
-import { usePlot } from "@/lib/plots";
+import type { PlotView } from "@/lib/plot-view";
 
-/** 정적/유저 생성 플롯을 클라이언트에서 해석해 프로필을 렌더링 */
-export function PlotProfileView({ id }: { id: string }) {
-  const lookup = usePlot(id);
-
-  if (lookup.status === "loading") {
-    return (
-      <div className="flex justify-center py-24">
-        <Spinner />
-      </div>
-    );
-  }
-  if (lookup.status === "missing") return <PlotNotFound />;
-
-  const { plot, mine } = lookup;
+/** 서버에서 해석된 플롯을 렌더링한다(접근 권한 판정은 페이지에서 끝나 있다) */
+export function PlotProfileView({ plot }: { plot: PlotView }) {
+  const mine = plot.mine;
 
   return (
     <div className="mx-auto max-w-lg space-y-5">
@@ -34,6 +19,11 @@ export function PlotProfileView({ id }: { id: string }) {
               {mine && (
                 <span className="rounded-md bg-primary-soft px-1.5 py-0.5 text-[11px] font-bold text-primary">
                   내 플롯
+                </span>
+              )}
+              {plot.visibility === "private" && (
+                <span className="rounded-md bg-surface-2 px-1.5 py-0.5 text-[11px] font-bold text-text-sub">
+                  비공개
                 </span>
               )}
             </h1>

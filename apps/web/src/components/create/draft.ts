@@ -1,4 +1,7 @@
 import { featuredTags } from "@theta/mocks";
+import { LIMITS, MAX_TAGS } from "@/lib/plot-limits";
+
+export { LIMITS, MAX_TAGS };
 
 export interface PlotDraft {
   name: string;
@@ -38,17 +41,6 @@ export const TAG_POOL: string[] = [
   "뱀파이어", "아포칼립스", "구미호", "코믹", "힐링",
   "청춘", "능글", "집착", "소꿉친구", "동양판타지",
 ];
-
-export const MAX_TAGS = 4;
-
-export const LIMITS = {
-  name: 20,
-  tagline: 40,
-  description: 300,
-  persona: 500,
-  firstMessage: 500,
-  tag: 8,
-} as const;
 
 export function emptyDraft(): PlotDraft {
   return {

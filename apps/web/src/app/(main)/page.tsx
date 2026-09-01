@@ -1,22 +1,27 @@
-"use client";
-
-import { useMemo, useState } from "react";
 import Link from "next/link";
-import { plots, featuredTags, notices } from "@theta/mocks";
-import { Chip } from "@theta/ui";
+import { featuredTags, notices } from "@theta/mocks";
+import { db } from "@theta/db";
 import { PlotCard } from "@/components/PlotCard";
-import { useAllPlots } from "@/lib/plots";
+import { TagFilter } from "@/components/TagFilter";
+import { getCurrentUser } from "@/server/auth/current-user";
+import { listPlots } from "@/server/plots/queries";
 
-export default function HomePage() {
-  const [tag, setTag] = useState<string | null>(null);
-  const { mine } = useAllPlots();
-  const mineIds = useMemo(() => new Set(mine.map((p) => p.id)), [mine]);
+// 로그인 유저의 비공개 플롯 노출 여부가 요청마다 달라지므로 캐시하지 않는다
+export const dynamic = "force-dynamic";
 
-  // 내 플롯이 맨 앞, 나머지는 인기순
-  const filtered = useMemo(() => {
-    const sorted = [...mine, ...[...plots].sort((a, b) => b.chats - a.chats)];
-    return tag ? sorted.filter((p) => p.tags.includes(tag)) : sorted;
-  }, [mine, tag]);
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tag?: string }>;
+}) {
+  const [{ tag }, user] = await Promise.all([searchParams, getCurrentUser()]);
+  const activeTag = tag?.trim() ? tag.trim() : null;
+  // 유저가 직접 만든 태그로 필터가 걸리면 칩 목록에 그 태그도 끼워 넣어 선택 상태를 보여준다
+  const chips: string[] =
+    activeTag && !(featuredTags as readonly string[]).includes(activeTag)
+      ? [activeTag, ...featuredTags]
+      : [...featuredTags];
+  const plots = await listPlots(db, { viewerId: user?.id ?? null, tag: activeTag });
 
   const pinned = notices.find((n) => n.pinned);
 
@@ -37,24 +42,15 @@ export default function HomePage() {
         </Link>
       )}
 
-      <div className="scrollbar-none -mx-4 flex gap-1.5 overflow-x-auto px-4 py-1">
-        <Chip active={tag === null} onClick={() => setTag(null)}>
-          전체
-        </Chip>
-        {featuredTags.map((t) => (
-          <Chip key={t} active={tag === t} onClick={() => setTag(t)}>
-            #{t}
-          </Chip>
-        ))}
-      </div>
+      <TagFilter tags={chips} active={activeTag} />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-        {filtered.map((plot) => (
-          <PlotCard key={plot.id} plot={plot} mine={mineIds.has(plot.id)} />
+        {plots.map((plot) => (
+          <PlotCard key={plot.id} plot={plot} mine={plot.mine} />
         ))}
       </div>
 
-      {filtered.length === 0 && (
+      {plots.length === 0 && (
         <p className="py-16 text-center text-sm text-text-faint">
           해당 태그의 플롯이 아직 없어요.
         </p>

@@ -1,18 +1,21 @@
-import { getPlot, plots } from "@theta/mocks";
+import type { Metadata } from "next";
+import { db } from "@theta/db";
+import { PlotNotFound } from "@/components/PlotNotFound";
 import { PlotProfileView } from "@/components/PlotProfileView";
+import { getCurrentUser } from "@/server/auth/current-user";
+import { getPlotForViewer } from "@/server/plots/queries";
 
-/** 정적 플롯은 프리렌더, 유저 생성 플롯(u-*)은 클라이언트에서 해석 */
-export function generateStaticParams() {
-  return plots.map((p) => ({ id: p.id }));
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ id: string }>;
-}) {
+}): Promise<Metadata> {
   const { id } = await params;
-  return { title: getPlot(id)?.name ?? "플롯" };
+  const user = await getCurrentUser();
+  const plot = await getPlotForViewer(db, id, user?.id ?? null);
+  return { title: plot?.name ?? "플롯" };
 }
 
 export default async function PlotProfilePage({
@@ -20,6 +23,10 @@ export default async function PlotProfilePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  return <PlotProfileView id={id} />;
+  const [{ id }, user] = await Promise.all([params, getCurrentUser()]);
+  const plot = await getPlotForViewer(db, id, user?.id ?? null);
+  // 비공개 플롯을 남이 열면 미존재와 구분되지 않는 화면을 보여준다
+  if (!plot) return <PlotNotFound />;
+
+  return <PlotProfileView plot={plot} />;
 }

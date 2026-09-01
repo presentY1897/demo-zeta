@@ -1,4 +1,4 @@
-import type { Plot } from "@theta/mocks";
+import type { PlotView } from "@/lib/plot-view";
 import { cn } from "@theta/ui";
 import { parseRoleplay } from "@/lib/roleplay";
 import { PlotAvatar } from "./PlotAvatar";
@@ -30,7 +30,7 @@ export function AssistantBubble({
   children,
   footer,
 }: {
-  plot: Plot;
+  plot: PlotView;
   children: React.ReactNode;
   footer?: React.ReactNode;
 }) {
