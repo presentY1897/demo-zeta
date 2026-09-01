@@ -11,24 +11,18 @@ import {
 import { createPool } from "./client";
 import { loadRootEnv } from "./env";
 import { stableUuid } from "./stable-uuid";
+import { DEMO_PASSWORD, OFFICIAL_EMAIL, OFFICIAL_NICKNAME, demoEmail } from "./demo";
 import type { Database } from "./client";
 import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "./schema";
 import path from "node:path";
 
-/** 데모/공식 계정 공통 비밀번호 — README와 로그인 화면에 공개된다 */
-export const DEMO_PASSWORD = "theta-demo";
 /** 시드 유저 800명의 password_hash — bcrypt 형식이 아니라 어떤 비밀번호와도 매칭되지 않는다 */
 export const UNUSABLE_PASSWORD_HASH = "!seed";
 
-export const OFFICIAL_NICKNAME = "세타공식";
-export const OFFICIAL_EMAIL = "official@theta.demo";
+export { DEMO_PASSWORD, OFFICIAL_EMAIL, OFFICIAL_NICKNAME, demoEmail };
 
 const officialId = stableUuid("user:official");
-
-function demoEmail(id: string): string {
-  return `${id}@theta.demo`;
-}
 
 /** ISO 날짜 문자열(YYYY-MM-DD)을 KST 자정 기준 시각으로 */
 function atKstMidnight(isoDay: string): Date {

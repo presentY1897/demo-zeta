@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Avatar, cn } from "@theta/ui";
-import { useSessionUser } from "@/lib/session";
+import type { PublicUser } from "@/server/auth/http";
 
 const NAV = [
   { href: "/", label: "홈" },
@@ -12,9 +12,9 @@ const NAV = [
   { href: "/notices", label: "공지사항" },
 ] as const;
 
-export function Header() {
+/** 로그인 상태는 서버 세션이 유일한 진실 — 레이아웃(RSC)이 주입한다 */
+export function Header({ user }: { user: PublicUser | null }) {
   const pathname = usePathname();
-  const user = useSessionUser();
 
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-bg/80 backdrop-blur-md">

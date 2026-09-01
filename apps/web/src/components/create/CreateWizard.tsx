@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { isoDate, TODAY, type Plot } from "@theta/mocks";
 import { Button, Chip, cn } from "@theta/ui";
-import { useSession } from "@/lib/session";
+import type { PublicUser } from "@/server/auth/http";
 import { newUserPlotId, useUserPlotsStore } from "@/lib/user-plots";
 import { RoleplayContent } from "@/components/chat/MessageBubble";
 import { PlotCard } from "@/components/PlotCard";
@@ -23,11 +23,8 @@ import { TextAreaField, TextField } from "./fields";
 
 const STEP_LABELS = ["프로필", "페르소나", "첫 메시지", "공개 설정"];
 
-export function CreateWizard() {
-  const user = useSession((s) => s.user);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-
+/** 로그인 유저는 서버 세션에서 온다(페이지가 RSC에서 주입) */
+export function CreateWizard({ user }: { user: PublicUser | null }) {
   const addPlot = useUserPlotsStore((s) => s.addPlot);
   const router = useRouter();
 
@@ -35,8 +32,6 @@ export function CreateWizard() {
   const [draft, setDraft] = useState<PlotDraft>(emptyDraft);
   const [error, setError] = useState<string | null>(null);
   const [customTag, setCustomTag] = useState("");
-
-  if (!mounted) return null;
 
   if (!user) {
     return (
