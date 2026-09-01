@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@theta/ui";
+import { AdminLogoutButton } from "./auth/AdminLogoutButton";
 
 const NAV = [
   { href: "/", label: "대시보드", icon: "📊" },
@@ -50,9 +51,9 @@ export function Sidebar() {
           );
         })}
       </nav>
-      <p className="hidden border-t border-line p-3 text-[11px] text-text-faint md:block">
-        데모 환경 · 모든 데이터는 모킹입니다
-      </p>
+      <div className="border-t border-line p-2">
+        <AdminLogoutButton />
+      </div>
     </aside>
   );
 }
