@@ -82,16 +82,28 @@ export async function openRoom(
   return { ok: true, roomId, messages: await loadMessages(db, roomId), created: true };
 }
 
+/**
+ * 방 단위 직렬화 잠금. 메시지 추가와 잘라내기가 겹치면 채번(`max(seq)` 조회)과 커밋 사이에
+ * 삭제가 끼어들어, 지운 대화 뒤에 응답이 되살아날 수 있다. 같은 방을 건드리는 쓰기는
+ * 이 잠금으로 줄을 세운다(트랜잭션이 끝나면 자동 해제된다).
+ */
+async function lockRoom(tx: Database, roomId: string): Promise<void> {
+  await tx.execute(sql`select pg_advisory_xact_lock(1, hashtext(${roomId}))`);
+}
+
 /** 지정 seq부터 끝까지 삭제. seq 0(첫 메시지)은 지울 수 없다 */
 export async function truncateFrom(
   db: Database,
   roomId: string,
   fromSeq: number,
 ): Promise<number> {
-  const removed = await db
-    .delete(messages)
-    .where(and(eq(messages.roomId, roomId), gte(messages.seq, fromSeq)))
-    .returning({ seq: messages.seq });
+  const removed = await db.transaction(async (tx) => {
+    await lockRoom(tx, roomId);
+    return tx
+      .delete(messages)
+      .where(and(eq(messages.roomId, roomId), gte(messages.seq, fromSeq)))
+      .returning({ seq: messages.seq });
+  });
   if (removed.length > 0) await touchRoom(db, roomId);
   return removed.length;
 }
@@ -117,6 +129,7 @@ export async function appendMessage(
   options: { expectedSeq?: number } = {},
 ): Promise<number | null> {
   return db.transaction(async (tx) => {
+    await lockRoom(tx, roomId);
     const rows = await tx
       .select({ next: sql<number>`coalesce(max(${messages.seq}), -1) + 1` })
       .from(messages)

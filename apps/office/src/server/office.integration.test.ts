@@ -321,7 +321,12 @@ describe("지표 합산 쿼리", () => {
       insert into daily_metrics (date, dau, new_users, turns, tokens, gpu_cost_krw, revenue_krw, fee_krw)
       values ('2026-08-31', 400000, 20000, 20000000, '{}'::jsonb, 100, 200, 30)
     `);
-    const id = await makeUser(t.db, { nickname: "이어붙임", isSeed: false });
+    // 가입일을 고정하지 않으면 실제 오늘이 시계열 끝을 늘려 날짜가 바뀔 때마다 깨진다
+    const id = await makeUser(t.db, {
+      nickname: "이어붙임",
+      isSeed: false,
+      joinedAt: new Date("2026-09-01T10:00:00+09:00"),
+    });
     await t.db.insert(usageEvents).values({
       userId: id,
       providerKind: "mock",
