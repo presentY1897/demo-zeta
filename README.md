@@ -3,6 +3,8 @@
 AI 캐릭터와 대화하며 이야기를 만들어가는 서비스와, 그 서비스를 운영하는 오피스를 한 저장소에 담았습니다.
 [제타(zeta-ai.io)](https://zeta-ai.io)를 오마주한 포트폴리오 프로젝트입니다.
 
+[![CI](https://github.com/presentY1897/demo-zeta/actions/workflows/ci.yml/badge.svg)](https://github.com/presentY1897/demo-zeta/actions/workflows/ci.yml)
+
 | | |
 | --- | --- |
 | **유저 앱** | <https://theta-web-ten.vercel.app> |
@@ -124,6 +126,8 @@ Recharts 같은 라이브러리 대신 SVG를 직접 그렸습니다. 데이터 
 - 통합 테스트는 진짜 Postgres(docker)에 붙습니다. 파일마다 truncate하고 직렬 실행합니다.
 - E2E는 전용 DB를 매 실행 시드로 되돌리고 두 앱을 동시에 띄웁니다.
   `E2E_BASE_URL`을 주면 **같은 스위트가 배포 URL로 재실행**됩니다 — 위 중단 버그를 이렇게 잡았습니다.
+- CI(GitHub Actions)는 Postgres 서비스 컨테이너를 띄우고 타입체크 → 테스트 → 빌드 → E2E를
+  그대로 돌립니다. CI에서는 dev 서버 대신 **빌드 결과**를 띄워 배포본과 같은 것을 검증합니다.
 
 ### git — bare + worktree, 티켓당 브랜치 하나
 

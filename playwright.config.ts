@@ -17,6 +17,10 @@ const externalWeb = process.env.E2E_BASE_URL;
 const webBaseUrl = WEB_BASE_URL;
 const officeBaseUrl = OFFICE_BASE_URL;
 
+// CI에서는 dev 서버 대신 빌드 결과를 띄운다 — 라우트별 최초 컴파일 지연이 없어 훨씬 안정적이고,
+// 배포본과 같은 프로덕션 빌드를 검증하게 된다(워크플로가 e2e 앞에서 build를 돌린다).
+const serverMode = process.env.CI ? "start" : "dev";
+
 const serverEnv = {
   DATABASE_URL: E2E_DATABASE_URL,
   SESSION_SECRET,
@@ -46,14 +50,14 @@ export default defineConfig({
     ? undefined
     : [
         {
-          command: `pnpm --filter @theta/web exec next dev --port ${WEB_PORT}`,
+          command: `pnpm --filter @theta/web exec next ${serverMode} --port ${WEB_PORT}`,
           url: `${webBaseUrl}/login`,
           reuseExistingServer: !process.env.CI,
           timeout: 120_000,
           env: serverEnv,
         },
         {
-          command: `pnpm --filter @theta/office exec next dev --port ${OFFICE_PORT}`,
+          command: `pnpm --filter @theta/office exec next ${serverMode} --port ${OFFICE_PORT}`,
           url: officeBaseUrl,
           reuseExistingServer: !process.env.CI,
           timeout: 120_000,
