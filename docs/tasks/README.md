@@ -25,8 +25,12 @@ T1(db) ─→ T2(인증) ─→ T3(플롯) ─→ T4(채팅) ─→ T6(오피스
 (E2E는 로컬과 **배포 URL 양쪽에서** 통과), `pnpm typecheck`·`pnpm build`도 통과.
 
 - 유저 앱 <https://theta-web-ten.vercel.app> · 오피스 <https://theta-office.vercel.app>
-- CI(GitHub Actions)도 붙었다 — push/PR to main에서 타입체크 → 테스트 → 빌드 → E2E.
-  Postgres 서비스 컨테이너를 띄우고, E2E는 dev 대신 **빌드 결과**를 실행한다(배포본과 동일한 것을 검증).
+- CI(GitHub Actions)도 붙었다 — push/PR to main에서 타입체크 → 테스트 → 빌드 → E2E를
+  **3분 남짓**에 끝낸다. Postgres 서비스 컨테이너를 띄우고, E2E는 dev 대신 **빌드 결과**를
+  실행한다(배포본과 동일한 것을 검증). 첫 실행이 곧바로 두 가지 결함을 잡았다 —
+  vitest 프로젝트 간 테스트 DB 공유와, 방 단위 쓰기의 경합(T4 문서 참고).
+
+**설계 문서의 계획은 전부 소진됐다.** 이후 작업은 새 요구가 생길 때 티켓을 추가한다.
 
 로컬에서 전 기능을 돌리는 최소 절차:
 
