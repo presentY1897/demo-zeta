@@ -1,4 +1,4 @@
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, gt, gte, sql } from "drizzle-orm";
 import { chatRooms, messages, plots, type Database } from "@theta/db";
 import type { ChatMessage } from "@/lib/chat-types";
 import { loadMessages } from "./queries";
@@ -106,6 +106,38 @@ export async function truncateFrom(
   });
   if (removed.length > 0) await touchRoom(db, roomId);
   return removed.length;
+}
+
+/**
+ * 중단 신호 처리 — `afterSeq` 뒤를 비우고 받은 데까지를 그 자리에 넣는다.
+ *
+ * **두 작업이 반드시 한 트랜잭션 안에 있어야 한다.** 나눠 실행하면 그 틈에 `/api/chat`의
+ * 늦은 저장(expectedSeq = afterSeq + 1)이 방금 비워진 자리를 채우고, 뒤이어 이 함수가
+ * 그다음 자리에 또 넣어서 **중단 응답이 두 번 남는다**. 한 트랜잭션으로 묶으면 늦은 저장은
+ * 이 트랜잭션 앞이나 뒤 중 한쪽에만 놓이고, 뒤에 놓이면 자리가 어긋나 스스로 물러난다.
+ */
+export async function replaceTail(
+  db: Database,
+  roomId: string,
+  afterSeq: number,
+  message: { content: string; interrupted: boolean } | null,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    await lockRoom(tx, roomId);
+    await tx
+      .delete(messages)
+      .where(and(eq(messages.roomId, roomId), gt(messages.seq, afterSeq)));
+    if (message) {
+      await tx.insert(messages).values({
+        roomId,
+        seq: afterSeq + 1,
+        role: "assistant",
+        content: message.content,
+        interrupted: message.interrupted,
+      });
+    }
+    await tx.update(chatRooms).set({ updatedAt: new Date() }).where(eq(chatRooms.id, roomId));
+  });
 }
 
 /** 첫 메시지만 남기고 비운다 */

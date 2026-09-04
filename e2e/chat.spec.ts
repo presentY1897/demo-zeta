@@ -52,11 +52,15 @@ test("중단하면 받은 데까지 보존되고, 재생성·초기화가 서버
   // (모의 모델은 첫 토큰 전 0.6~1.1초를 쉬므로 그 전에 끊으면 저장할 내용이 없다)
   await expect(page.getByText(/강무혁이/)).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "응답 중단" }).click();
-  await expect(page.getByText("⏹ 응답이 중단됐어요")).toBeVisible({ timeout: 30_000 });
 
-  // 새로고침해도 중단 표시가 남아 있다 — interrupted 플래그가 저장됐다
+  // 중단 표시는 **정확히 하나**여야 한다. 중단 신호의 잘라내기와 저장이 한 트랜잭션이 아니면
+  // 그 틈을 원래 요청의 늦은 저장이 채워 두 개가 남는다(CI에서 실제로 그렇게 깨졌다).
+  const interruptedMark = page.getByText("⏹ 응답이 중단됐어요");
+  await expect(interruptedMark).toHaveCount(1, { timeout: 30_000 });
+
+  // 새로고침해도 하나 그대로 — interrupted 플래그가 서버에 저장됐다
   await page.reload();
-  await expect(page.getByText("⏹ 응답이 중단됐어요")).toBeVisible();
+  await expect(interruptedMark).toHaveCount(1);
 
   // 재생성하면 중단 표시가 사라진 새 응답으로 바뀐다
   await page.getByRole("button", { name: "↺ 다시 생성" }).click();

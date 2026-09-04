@@ -10,7 +10,8 @@ import {
 } from "./e2e/env";
 
 /**
- * 스모크 E2E. 기본은 로컬 dev 서버를 자동 기동하고 전용 DB(theta_e2e)에 시드를 넣는다.
+ * 스모크 E2E. 기본은 로컬 서버를 자동 기동한다(DB 준비는 `pnpm e2e`가 먼저 도는
+ * e2e/prepare-db.ts가 맡는다 — webServer가 준비된 DB를 보게 하려면 그 앞이어야 한다).
  * `E2E_BASE_URL`을 주면 이미 떠 있는 서버(배포 URL 포함)를 그대로 쓴다 — T7의 배포 스모크가 이 경로다.
  */
 const externalWeb = process.env.E2E_BASE_URL;
@@ -39,7 +40,6 @@ export default defineConfig({
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : [["list"]],
   timeout: 60_000,
   expect: { timeout: 10_000 },
-  globalSetup: externalWeb ? undefined : "./e2e/global-setup.ts",
   use: {
     baseURL: webBaseUrl,
     trace: "retain-on-failure",
